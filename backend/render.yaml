@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: overtime-cards-api
+    env: python
+    buildCommand: pip install -r requirements.txt && pip install -e .
+    startCommand: gunicorn main:app -k uvicorn.workers.UvicornWorker -b 0.0.0.0:$PORT
+    healthCheckPath: /api/v1/health
+    disk:
+      name: sqlite-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: API_V1_STR
+        value: /api/v1
+      - key: CORS_ORIGINS
+        sync: false # Manually set in dashboard
+      - key: SECRET_KEY
+        generateValue: true # Generate a random value on first deploy
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "60"
+      - key: DATABASE_URL
+        value: "/data/overtime_cards.db"
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "60"
+      - key: SENTRY_DSN
+        sync: false # Manually set in dashboard
