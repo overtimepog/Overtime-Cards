@@ -1,0 +1,35 @@
+=== Card Game Test Results ===
+
+Snap: PASSED
+Go Fish: PASSED
+Rummy: PASSED
+Kings Corner: PASSED
+Bluff: PASSED
+Scat: PASSED
+Spades: PASSED
+Spoons: PASSED
+snap_hand_sizes: PASSED
+go_fish_hand_sizes: PASSED
+rummy_hand_sizes: PASSED
+kings_corner_hand_sizes: PASSED
+bluff_hand_sizes: FAILED
+  Errors:
+  - Player TestPlayer1_112721 has 17 cards, expected 13
+  - Player TestPlayer2_112721 has 17 cards, expected 13
+  - Player TestPlayer3_112722 has 18 cards, expected 13
+scat_hand_sizes: PASSED
+spades_hand_sizes: PASSED
+spoons_hand_sizes: PASSED
+Card_Dealing: FAILED
+  Errors:
+  - Wrong number of cards in Go Fish with 4 players: got 7, expected 5
+  - Wrong number of cards in Go Fish with 4 players: got 7, expected 5
+  - Wrong number of cards in Go Fish with 4 players: got 7, expected 5
+  - Wrong number of cards in Go Fish with 4 players: got 7, expected 5
+Card_Management: PASSED
+
+Overall Results:
+Total Tests: 18
+Passed: 16
+Failed: 2
+Success Rate: 88.9%

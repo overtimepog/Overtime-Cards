@@ -52,7 +52,6 @@ htmlcov/
 .pytest_cache/
 *.pyc
 .aider*
-*.txt
 
 # Local development
 .env
