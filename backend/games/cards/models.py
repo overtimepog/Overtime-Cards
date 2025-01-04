@@ -57,16 +57,16 @@ class Card:
 class Deck:
     def __init__(self):
         self.cards: List[Card] = []
-        self.reset()
-
-    def reset(self):
-        """Reset deck to original state"""
-        self.cards = []
+        
+    def create_deck(self):
+        """Create a deck of 52 cards"""
         for suit in Suit:
             for rank in Rank:
                 self.cards.append(Card(rank, suit))
         self.shuffle()
-
+        if len(self.cards) != 52:
+            raise ValueError(f"Deck initialization error: {len(self.cards)} cards instead of 52")
+    
     def shuffle(self):
         """Shuffle the deck"""
         random.shuffle(self.cards)
@@ -139,6 +139,7 @@ class BaseGame:
         self.room_code = room_code
         self.players: Dict[str, Player] = {}
         self.deck = Deck()
+        self.deck.create_deck()  # Initialize deck with 52 cards
         self.state = GameState.WAITING
         self.current_player_idx = 0
         self.direction = 1  # 1 for clockwise, -1 for counter-clockwise
@@ -173,8 +174,12 @@ class BaseGame:
         try:
             self.state = GameState.STARTING
             # Reset deck and validate card count
-            self.deck.reset()
+            self.deck = Deck()  # Create a fresh deck
+            self.deck.create_deck()  # Initialize with 52 cards
             total_cards = len(self.deck.cards)
+            if total_cards != 52:
+                raise ValueError(f"Invalid deck size: {total_cards} cards instead of 52")
+            
             min_cards_needed = self._calculate_min_cards_needed()
             if total_cards < min_cards_needed:
                 raise ValueError(f"Not enough cards in deck. Need {min_cards_needed}, have {total_cards}")

@@ -51,11 +51,18 @@ function GameView() {
           // Convert player IDs to strings and ensure hands are properly set
           Object.keys(newState.players).forEach(id => {
             const strId = String(id);
-            newState.players[strId] = {
-              ...newState.players[strId],
-              id: strId,
-              hand: strId === String(playerId) ? (newState.players[strId].hand || []) : []
-            };
+            if (newState.players[strId]) {
+              newState.players[strId] = {
+                ...newState.players[strId],
+                id: strId,
+                hand: strId === String(playerId) ? 
+                  (newState.players[strId].hand || []).map(card => ({
+                    ...card,
+                    rank: card.rank,
+                    suit: card.suit
+                  })) : []
+              };
+            }
           });
           
           setGameState(newState);
@@ -120,9 +127,9 @@ function GameView() {
           }));
           setError(`Game Over! ${data.winner.username} wins!`);
         }
-      } catch (err) {
-        console.error('Error processing game message:', err);
-        setError('Error processing server message');
+      } catch (error) {
+        console.error('Error processing WebSocket message:', error);
+        setError('Error processing game update');
       }
     };
 
@@ -143,7 +150,7 @@ function GameView() {
         websocket.close();
       }
     };
-  }, [roomCode, playerId, username, gameType, navigate]);
+  }, [playerId, username, gameType, roomCode, navigate]);
 
   const handleGameAction = async (actionType, actionData = {}) => {
     try {
@@ -190,20 +197,10 @@ function GameView() {
     
     // Convert rank and suit to match filename format
     const rankMap = {
-      'ACE': 'A',
-      'KING': 'K',
-      'QUEEN': 'Q',
-      'JACK': 'J',
-      'TEN': '10',
-      'NINE': '9',
-      'EIGHT': '8',
-      'SEVEN': '7',
-      'SIX': '6',
-      'FIVE': '5',
-      'FOUR': '4',
-      'THREE': '3',
-      'TWO': '2',
-      // Also support numeric values
+      'A': 'A',
+      'K': 'K',
+      'Q': 'Q',
+      'J': 'J',
       '10': '10',
       '9': '9',
       '8': '8',
@@ -216,14 +213,14 @@ function GameView() {
     };
     
     const suitMap = {
-      'HEARTS': 'hearts',
-      'DIAMONDS': 'diamonds',
-      'CLUBS': 'clubs',
-      'SPADES': 'spades'
+      'hearts': 'hearts',
+      'diamonds': 'diamonds',
+      'clubs': 'clubs',
+      'spades': 'spades'
     };
     
     const mappedRank = rankMap[rank] || rank;
-    const mappedSuit = suitMap[suit.toUpperCase()] || suit.toLowerCase();
+    const mappedSuit = suitMap[suit] || suit;
     
     // Use the correct file naming format: suit_rank.png
     const cardImagePath = `/cards/${mappedSuit}_${mappedRank}.png`;
