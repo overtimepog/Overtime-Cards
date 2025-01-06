@@ -75,12 +75,12 @@ function GameView() {
           if (data.type === 'game_update' && data.result && !data.result.success) {
             setError(data.result.message || 'Action failed');
           }
-        } else if (data.type === 'game_start') {
-          console.log('Game start received:', data);
+        } else if (data.type === 'game_started') {
+          console.log('Game started received:', data);
           // Handle initial game state from game start
           const newState = {
-            ...data.initial_state,
-            players: data.players || {},
+            ...data.state,
+            players: data.state.players || {},
             game_type: data.game_type
           };
           

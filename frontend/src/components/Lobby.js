@@ -131,7 +131,7 @@ function Lobby() {
             if (data.chat_history) {
               setChatMessages(data.chat_history);
             }
-          } else if (data.type === 'game_start') {
+          } else if (data.type === 'game_started') {
             navigate(`/game/${roomCode}/${playerId}`, {
               state: { 
                 username,
