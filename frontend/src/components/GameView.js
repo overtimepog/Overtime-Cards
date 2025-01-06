@@ -209,6 +209,10 @@ function GameView() {
   };
 
   const renderGameCenter = () => {
+    if (!gameState) return null;
+
+    const isCurrentPlayer = gameState.current_player === playerId;
+
     switch (gameType) {
       case 'spoons':
         return (
