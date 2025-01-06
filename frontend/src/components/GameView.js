@@ -10,7 +10,7 @@ function GameView() {
   const [ws, setWs] = useState(null);
   const [selectedCards, setSelectedCards] = useState([]);
   const { username, gameType, isHost } = location.state || {};
-  const isCurrentPlayer = gameState?.current_player === playerId;
+  const [isCurrentPlayer, setIsCurrentPlayer] = useState(false);
 
   const BASE_URL = "https://overtime-cards-api.onrender.com/api/v1";
 
