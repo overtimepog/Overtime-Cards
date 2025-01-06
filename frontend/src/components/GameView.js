@@ -270,6 +270,232 @@ function GameView() {
           </div>
         );
 
+      case 'kings_corner':
+        return (
+          <div className="kings-corner-container" style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '400px',
+            height: '400px'
+          }}>
+            {/* Foundation piles (center) */}
+            {[...Array(4)].map((_, index) => {
+              const pile = gameState.piles?.[`foundation_${index}`] || [];
+              const angle = index * 90; // 4 piles at 90-degree intervals
+              return (
+                <div key={`foundation_${index}`} style={{
+                  position: 'absolute',
+                  left: '50%',
+                  top: '50%',
+                  transform: `translate(-50%, -50%) translate(${Math.cos(angle * Math.PI / 180) * 60}px, ${Math.sin(angle * Math.PI / 180) * 60}px)`
+                }}>
+                  {pile.map((card, cardIndex) => renderCard(card))}
+                </div>
+              );
+            })}
+            
+            {/* Corner piles */}
+            {[...Array(4)].map((_, index) => {
+              const pile = gameState.piles?.[`corner_${index}`] || [];
+              const angle = index * 90 + 45; // 4 piles at corners (45° offset)
+              return (
+                <div key={`corner_${index}`} style={{
+                  position: 'absolute',
+                  left: '50%',
+                  top: '50%',
+                  transform: `translate(-50%, -50%) translate(${Math.cos(angle * Math.PI / 180) * 120}px, ${Math.sin(angle * Math.PI / 180) * 120}px)`
+                }}>
+                  {pile.map((card, cardIndex) => renderCard(card))}
+                </div>
+              );
+            })}
+          </div>
+        );
+
+      case 'scat':
+        return (
+          <div className="scat-center" style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '400px',
+            height: '300px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '20px'
+          }}>
+            {/* Game info (current round, knocked status) */}
+            <div className="game-info" style={{
+              color: 'white',
+              textAlign: 'center',
+              fontSize: '1.2em'
+            }}>
+              {gameState.knocked_player && (
+                <div style={{ color: '#FFD700' }}>
+                  {gameState.players[gameState.knocked_player]?.name} has knocked!
+                </div>
+              )}
+              {gameState.round_number && (
+                <div>Round {gameState.round_number}</div>
+              )}
+            </div>
+
+            {/* Draw and Discard piles */}
+            <div className="card-piles" style={{
+              display: 'flex',
+              gap: '40px',
+              alignItems: 'center'
+            }}>
+              {/* Draw pile */}
+              <div 
+                className="draw-pile"
+                onClick={() => isCurrentPlayer && handleGameAction('draw_card', { source: 'deck' })}
+                style={{
+                  position: 'relative',
+                  cursor: isCurrentPlayer ? 'pointer' : 'default',
+                  transition: 'transform 0.2s',
+                  transform: isCurrentPlayer ? 'scale(1.05)' : 'scale(1)',
+                }}
+              >
+                {gameState.deck?.cards_remaining > 0 && renderCard({
+                  show_back: true,
+                  image_back: '/card-back.png'
+                })}
+                <div style={{
+                  position: 'absolute',
+                  bottom: '-25px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  color: 'white',
+                  fontSize: '0.8em',
+                  whiteSpace: 'nowrap'
+                }}>
+                  Draw ({gameState.deck?.cards_remaining})
+                </div>
+              </div>
+
+              {/* Discard pile */}
+              <div 
+                className="discard-pile"
+                onClick={() => isCurrentPlayer && handleGameAction('draw_card', { source: 'discard' })}
+                style={{
+                  position: 'relative',
+                  cursor: isCurrentPlayer ? 'pointer' : 'default',
+                  transition: 'transform 0.2s',
+                  transform: isCurrentPlayer ? 'scale(1.05)' : 'scale(1)',
+                }}
+              >
+                {gameState.discard_pile?.slice(-1).map((card, index) => (
+                  <div key={index}>
+                    {renderCard(card)}
+                  </div>
+                ))}
+                <div style={{
+                  position: 'absolute',
+                  bottom: '-25px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  color: 'white',
+                  fontSize: '0.8em'
+                }}>
+                  Discard
+                </div>
+              </div>
+            </div>
+
+            {/* Current player's score (if available) */}
+            {gameState.players[playerId]?.current_score && (
+              <div style={{
+                color: 'white',
+                marginTop: '20px',
+                padding: '5px 15px',
+                backgroundColor: 'rgba(0,0,0,0.3)',
+                borderRadius: '10px'
+              }}>
+                Current Score: {gameState.players[playerId].current_score}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'rummy':
+        return (
+          <div className="table-center" style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            display: 'flex',
+            gap: '20px'
+          }}>
+            {/* Draw pile */}
+            <div className="draw-pile" style={{
+              position: 'relative',
+              width: '80px',
+              height: '120px'
+            }}>
+              {gameState.deck?.cards_remaining > 0 && renderCard({
+                show_back: true,
+                image_back: '/card-back.png'
+              })}
+            </div>
+            
+            {/* Discard pile */}
+            <div className="discard-pile" style={{
+              position: 'relative',
+              width: '80px',
+              height: '120px'
+            }}>
+              {gameState.discard_pile?.slice(-1).map(card => renderCard(card))}
+            </div>
+          </div>
+        );
+
+      case 'spades':
+        return (
+          <div className="spades-center" style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '300px',
+            height: '200px'
+          }}>
+            {/* Current trick */}
+            <div className="current-trick" style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              {gameState.current_trick?.map((card, index) => (
+                <div key={index} style={{
+                  transform: `rotate(${index * 90}deg)`
+                }}>
+                  {renderCard(card)}
+                </div>
+              ))}
+            </div>
+            
+            {/* Display current scores and bids */}
+            <div className="game-info" style={{
+              position: 'absolute',
+              top: '-30px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              color: 'white',
+              textAlign: 'center'
+            }}>
+              <div>Tricks needed: {gameState.tricks_needed}</div>
+              <div>Trump: ♠</div>
+            </div>
+          </div>
+        );
+
       case 'snap':
       case 'bluff':
       case 'go_fish':
@@ -434,49 +660,176 @@ function GameView() {
             gap: '10px'
           }}>
             {isCurrentPlayer ? (
-              selectedCards.length > 0 && (
-                <select 
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      handleGameAction('play_cards', {
-                        card_indices: selectedCards,
-                        claimed_rank: e.target.value
-                      });
-                      setSelectedCards([]);
-                    }
-                  }}
-                  className="rank-select"
-                  style={{
-                    padding: '10px',
-                    borderRadius: '5px',
-                    border: '1px solid #ccc',
-                    backgroundColor: 'white',
-                    minWidth: '200px'
-                  }}
-                >
-                  <option value="">Claim a rank</option>
-                  {['ACE', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'JACK', 'QUEEN', 'KING'].map(rank => (
-                    <option key={rank} value={rank}>{rank}</option>
-                  ))}
-                </select>
-              )
+              <>
+                {/* Play cards face down */}
+                {selectedCards.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <select 
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          handleGameAction('play_cards', {
+                            card_indices: selectedCards,
+                            claimed_rank: e.target.value
+                          });
+                          setSelectedCards([]);
+                        }
+                      }}
+                      className="rank-select"
+                      style={{
+                        padding: '10px',
+                        borderRadius: '5px',
+                        border: '1px solid #ccc',
+                        backgroundColor: 'white',
+                        minWidth: '200px'
+                      }}
+                    >
+                      <option value="">Claim a rank</option>
+                      {['ACE', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'JACK', 'QUEEN', 'KING'].map(rank => (
+                        <option key={rank} value={rank}>{rank}</option>
+                      ))}
+                    </select>
+                    <div style={{ color: 'white', textAlign: 'center', fontSize: '0.8em' }}>
+                      Selected {selectedCards.length} card{selectedCards.length !== 1 ? 's' : ''}
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
+              /* Challenge button for other players */
               <button 
                 onClick={() => handleGameAction('challenge')}
                 className="button"
-                disabled={!gameState.can_challenge}
+                disabled={!gameState.last_play}
                 style={{
-                  backgroundColor: gameState.can_challenge ? '#f44336' : '#ccc',
+                  backgroundColor: gameState.last_play ? '#f44336' : '#ccc',
                   color: 'white',
                   border: 'none',
                   padding: '10px 20px',
                   borderRadius: '5px',
-                  cursor: gameState.can_challenge ? 'pointer' : 'not-allowed'
+                  cursor: gameState.last_play ? 'pointer' : 'not-allowed'
                 }}
               >
                 Challenge!
               </button>
             )}
+            {/* Display last claimed cards */}
+            {gameState.last_play && (
+              <div style={{ 
+                color: 'white', 
+                textAlign: 'center', 
+                marginTop: '10px',
+                padding: '5px 10px',
+                backgroundColor: 'rgba(0,0,0,0.3)',
+                borderRadius: '5px'
+              }}>
+                Last play: {gameState.players[gameState.last_play.player]?.name} claimed {gameState.last_play.count} {gameState.last_play.rank}{gameState.last_play.count !== 1 ? 's' : ''}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'scat':
+        return (
+          <div className="game-controls" style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '10px'
+          }}>
+            {isCurrentPlayer && (
+              <>
+                {/* Draw controls */}
+                {myHand.length < 3 && (
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      onClick={() => handleGameAction('draw_card', { source: 'deck' })}
+                      className="button"
+                      style={{
+                        backgroundColor: '#4CAF50',
+                        color: 'white',
+                        border: 'none',
+                        padding: '10px 20px',
+                        borderRadius: '5px'
+                      }}
+                    >
+                      Draw from Deck
+                    </button>
+                    <button
+                      onClick={() => handleGameAction('draw_card', { source: 'discard' })}
+                      className="button"
+                      style={{
+                        backgroundColor: '#2196F3',
+                        color: 'white',
+                        border: 'none',
+                        padding: '10px 20px',
+                        borderRadius: '5px'
+                      }}
+                    >
+                      Take from Discard
+                    </button>
+                  </div>
+                )}
+
+                {/* Discard control */}
+                {myHand.length > 3 && selectedCards.length === 1 && (
+                  <button
+                    onClick={() => {
+                      handleGameAction('discard_card', { card_index: selectedCards[0] });
+                      setSelectedCards([]);
+                    }}
+                    className="button"
+                    style={{
+                      backgroundColor: '#f44336',
+                      color: 'white',
+                      border: 'none',
+                      padding: '10px 20px',
+                      borderRadius: '5px'
+                    }}
+                  >
+                    Discard Selected Card
+                  </button>
+                )}
+
+                {/* Knock control */}
+                {myHand.length === 3 && !gameState.final_round && (
+                  <button
+                    onClick={() => handleGameAction('knock')}
+                    className="button"
+                    style={{
+                      backgroundColor: '#FFC107',
+                      color: 'black',
+                      border: 'none',
+                      padding: '10px 20px',
+                      borderRadius: '5px',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    Knock!
+                  </button>
+                )}
+              </>
+            )}
+
+            {/* Display lives */}
+            <div style={{
+              display: 'flex',
+              gap: '20px',
+              marginTop: '10px'
+            }}>
+              {Object.entries(gameState.lives || {}).map(([pid, lives]) => (
+                <div key={pid} style={{
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px'
+                }}>
+                  <span>{gameState.players[pid]?.name}: </span>
+                  {[...Array(lives)].map((_, i) => (
+                    <span key={i} style={{ color: '#FFD700' }}>♥</span>
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
         );
 
