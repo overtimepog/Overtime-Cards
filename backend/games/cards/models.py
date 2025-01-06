@@ -42,16 +42,22 @@ class Card:
             return int(self.rank.value)
 
     @property
-    def image_path(self) -> str:
-        """Get the path to the card's image"""
-        return f"assets/cards/{self.suit.value}_{self.rank.value}.png"
+    def image_front(self) -> str:
+        """Get the path to the card's front image"""
+        return f"cards/{self.suit.value}_{self.rank.value}.png"
+
+    @property
+    def image_back(self) -> str:
+        """Get the path to the card's back image"""
+        return "cards/back_dark.png"
 
     def to_dict(self) -> Dict[str, str]:
         """Convert card to dictionary for JSON serialization"""
         return {
             'rank': self.rank.value,
             'suit': self.suit.value,
-            'image': self.image_path
+            'image_front': self.image_front,
+            'image_back': self.image_back
         }
 
 class Deck:
@@ -227,12 +233,24 @@ class BaseGame:
             host_player = next((p for p in self.players.values() if p.is_host), None)
             host_id = host_player.id if host_player else None
             
-            # Convert players to dict, hiding hands except for the requesting player
+            # Convert players to dict
             players_dict = {}
             for player in self.player_order:
-                # Hide hand if this isn't the requesting player
-                hide_hand = for_player_id != player.id if for_player_id else True
-                players_dict[player.id] = player.to_dict(hide_hand=hide_hand)
+                # Get the full player dict with their cards
+                player_dict = player.to_dict(hide_hand=False)
+                
+                # If we're getting state for a specific player, add show_back flags
+                if for_player_id is not None:
+                    # Deep copy the hand array to avoid modifying the original card dicts
+                    hand_copy = []
+                    for card in player_dict['hand']:
+                        card_copy = card.copy()
+                        # Only add show_back=true for other players' cards
+                        card_copy['show_back'] = str(player.id) != str(for_player_id)
+                        hand_copy.append(card_copy)
+                    player_dict['hand'] = hand_copy
+                
+                players_dict[str(player.id)] = player_dict
             
             # Get current player safely
             current_player = self.current_player
@@ -244,7 +262,7 @@ class BaseGame:
                 'host_id': host_id,
                 'players': players_dict,
                 'current_player': current_player_id,
-                'deck': {'cards': [card.to_dict() for card in self.deck.cards]},
+                'deck': {'cards_remaining': len(self.deck.cards)},  # Only send count, not actual cards
                 'direction': self.direction,
                 'current_player_idx': self.current_player_idx
             }
@@ -258,7 +276,7 @@ class BaseGame:
                 'host_id': None,  # Include host_id in error state
                 'players': {},  # Empty dict for consistency
                 'current_player': None,
-                'deck': {'cards': []},
+                'deck': {'cards_remaining': 0},
                 'direction': self.direction,
                 'current_player_idx': 0,
                 'error': str(e)

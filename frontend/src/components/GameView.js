@@ -46,24 +46,19 @@ function GameView() {
             newState.players = {};
           }
           
-          // Process player data, preserving hands for the current player
+          // Process player data
           Object.keys(newState.players).forEach(id => {
             const strId = String(id);
             if (newState.players[strId]) {
               const playerData = newState.players[strId];
               
-              // Preserve the full hand data for the current player
-              const hand = strId === String(playerId) ? 
-                (playerData.hand || []).map(card => ({
-                  rank: card.rank,
-                  suit: card.suit
-                })) : [];
-
+              // Keep the hand data as is from the server
+              // The server will only send the hand for the current player
               newState.players[strId] = {
                 ...playerData,
                 id: strId,
-                hand: hand,
-                hand_size: playerData.hand_size || hand.length
+                hand: playerData.hand || [],
+                hand_size: playerData.hand_size || 0
               };
             }
           });
@@ -84,16 +79,21 @@ function GameView() {
             game_type: data.game_type
           };
           
-          // Convert player IDs to strings and ensure hands are properly set
+          // Process player data
           Object.keys(newState.players).forEach(id => {
             const strId = String(id);
-            newState.players[strId] = {
-              ...newState.players[strId],
-              id: strId,
-              hand: strId === String(playerId) ? (newState.players[strId].hand || []) : []
-            };
+            if (newState.players[strId]) {
+              const playerData = newState.players[strId];
+              newState.players[strId] = {
+                ...playerData,
+                id: strId,
+                hand: playerData.hand || [],
+                hand_size: playerData.hand_size || 0
+              };
+            }
           });
           
+          console.log('Processed game state:', newState);
           setGameState(newState);
           setError('');
         } else if (data.type === 'error') {
@@ -170,42 +170,19 @@ function GameView() {
 
   const renderCard = (card) => {
     if (!card) return null;
-    const { rank, suit } = card;
-    
-    const rankMap = {
-      'A': 'A', 'K': 'K', 'Q': 'Q', 'J': 'J', '10': '10',
-      '9': '9', '8': '8', '7': '7', '6': '6', '5': '5',
-      '4': '4', '3': '3', '2': '2'
-    };
-    
-    const suitMap = {
-      'hearts': 'hearts',
-      'diamonds': 'diamonds',
-      'clubs': 'clubs',
-      'spades': 'spades'
-    };
-    
-    const mappedRank = rankMap[rank] || rank;
-    const mappedSuit = suitMap[suit] || suit;
-    
-    const cardImagePath = `/cards/${mappedSuit}_${mappedRank}.png`;
     
     return (
       <img 
-        src={cardImagePath} 
-        alt={`${rank} of ${suit}`}
+        src={card.show_back ? card.image_back : card.image_front}
+        alt={card.show_back ? "Card back" : `${card.rank} of ${card.suit}`}
         className="card-image"
         style={{
-          width: '80px',
+          width: card.show_back ? '60px' : '80px', // Smaller for backs
           height: 'auto',
           borderRadius: '8px',
           boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
           border: '2px solid transparent',
           transition: 'all 0.2s ease'
-        }}
-        onError={(e) => {
-          console.error('Failed to load card image:', cardImagePath);
-          e.target.src = '/cards/back_dark.png';
         }}
       />
     );
@@ -589,30 +566,28 @@ function GameView() {
                 )}
               </div>
 
-              {/* Show cards only for current player */}
-              {id === playerId && (
-                <div className="my-hand" style={{ 
-                  display: 'flex', 
-                  gap: '5px',
-                  flexWrap: 'wrap',
-                  justifyContent: 'center',
-                  maxWidth: '300px'
-                }}>
-                  {player.hand?.map((card, cardIndex) => (
-                    <div 
-                      key={cardIndex}
-                      onClick={() => handleCardClick(cardIndex)}
-                      style={{
-                        transform: selectedCards.includes(cardIndex) ? 'translateY(-10px)' : 'none',
-                        transition: 'transform 0.2s ease',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {renderCard(card)}
-                    </div>
-                  ))}
-                </div>
-              )}
+              {/* Show cards for all players */}
+              <div className="player-hand" style={{ 
+                display: 'flex', 
+                gap: '5px',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                maxWidth: '300px'
+              }}>
+                {player.hand?.map((card, cardIndex) => (
+                  <div 
+                    key={cardIndex}
+                    onClick={() => id === playerId ? handleCardClick(cardIndex) : null}
+                    style={{
+                      transform: id === playerId && selectedCards.includes(cardIndex) ? 'translateY(-10px)' : 'none',
+                      transition: 'transform 0.2s ease',
+                      cursor: id === playerId ? 'pointer' : 'default'
+                    }}
+                  >
+                    {renderCard(card)}
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
 

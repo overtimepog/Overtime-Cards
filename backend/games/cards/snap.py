@@ -18,7 +18,30 @@ class SnapGame(BaseGame):
 
     def start_game(self):
         """Start the Snap game by dealing cards and setting initial state"""
+        # Call parent start_game to initialize basic game state
         super().start_game()
+        
+        # Deal cards evenly to all players
+        num_players = len(self.players)
+        if num_players < 2:
+            raise ValueError("Snap requires at least 2 players")
+            
+        # Calculate cards per player (divide deck evenly)
+        cards_per_player = 52 // num_players
+        
+        # Deal cards to each player
+        for player in self.players.values():
+            for _ in range(cards_per_player):
+                card = self.deck.draw()
+                if card:
+                    player.hand.append(card)
+                else:
+                    break  # No more cards to deal
+                    
+        # Initialize game-specific state
+        self.center_pile = []
+        self.last_snap_time = {}
+        self.last_card_time = None
 
     def play_card(self, player_id: str) -> Dict[str, Any]:
         """Play a card from the player's hand to the center"""
