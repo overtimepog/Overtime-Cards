@@ -37,63 +37,43 @@ function GameView() {
         const data = JSON.parse(event.data);
         console.log('Raw WebSocket message:', data);
         
-        if (data.type === 'game_state') {
-          console.log('Setting game state from:', data);
-          const newState = data.state || {};
-          console.log('New game state to set:', newState);
+        if (data.type === 'game_state' || data.type === 'game_update') {
+          console.log('Processing game state update:', data);
+          const newState = data.type === 'game_state' ? data.state : data.game_state || {};
           
           // Ensure we have a valid players object
           if (!newState.players) {
             newState.players = {};
           }
           
-          // Convert player IDs to strings and ensure hands are properly set
+          // Process player data, preserving hands for the current player
           Object.keys(newState.players).forEach(id => {
             const strId = String(id);
             if (newState.players[strId]) {
-              // Keep the hand array if it exists for the current player
-              const currentHand = strId === String(playerId) ? 
-                (newState.players[strId].hand || []).map(card => ({
+              const playerData = newState.players[strId];
+              
+              // Preserve the full hand data for the current player
+              const hand = strId === String(playerId) ? 
+                (playerData.hand || []).map(card => ({
                   rank: card.rank,
                   suit: card.suit
                 })) : [];
 
               newState.players[strId] = {
-                ...newState.players[strId],
+                ...playerData,
                 id: strId,
-                hand: currentHand
+                hand: hand,
+                hand_size: playerData.hand_size || hand.length
               };
             }
           });
           
+          console.log('Processed game state:', newState);
           setGameState(newState);
           setError('');
-        } else if (data.type === 'game_update') {
-          console.log('Game update received:', data);
-          const newState = data.game_state || {};
-          console.log('New game state from update:', newState);
           
-          // Ensure we have a valid players object with proper hand data
-          if (!newState.players) {
-            newState.players = {};
-          }
-          
-          // Convert player IDs to strings and ensure hands are properly set
-          Object.keys(newState.players).forEach(id => {
-            const strId = String(id);
-            newState.players[strId] = {
-              ...newState.players[strId],
-              id: strId,
-              hand: strId === String(playerId) ? (newState.players[strId].hand || []) : []
-            };
-          });
-          
-          setGameState(newState);
-          
-          if (data.result && !data.result.success) {
+          if (data.type === 'game_update' && data.result && !data.result.success) {
             setError(data.result.message || 'Action failed');
-          } else {
-            setError('');
           }
         } else if (data.type === 'game_start') {
           console.log('Game start received:', data);
@@ -130,7 +110,7 @@ function GameView() {
         }
       } catch (error) {
         console.error('Error processing WebSocket message:', error);
-        setError('Error processing game update');
+        setError('Failed to process game update');
       }
     };
 
