@@ -1,5 +1,5 @@
 from typing import Dict, Any, Optional, List
-from .models import BaseGame, Card, GameState, deal_initial_cards
+from .models import BaseGame, Card, GameState
 import time
 
 class SnapGame(BaseGame):

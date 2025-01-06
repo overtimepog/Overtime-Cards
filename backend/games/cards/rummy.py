@@ -313,3 +313,26 @@ class RummyGame(BaseGame):
                 'last_action': None,
                 'error': str(e)
             }
+
+    def start_game(self):
+        """Start a new game"""
+        try:
+            if self.state != GameState.WAITING:
+                raise ValueError("Game is not in waiting state")
+
+            # Collect all cards
+            for player in self.players.values():
+                self.deck.cards.extend(player.hand)
+                player.hand.clear()
+            self.deck.cards.extend(self.discard_pile)
+            self.discard_pile.clear()
+            
+            # Shuffle and deal new hands
+            self.deck.shuffle()
+            super().start_game()
+            
+            # Move to next round
+            self.state = GameState.PLAYING
+
+        except Exception as e:
+            raise ValueError(f"Failed to start game: {str(e)}")

@@ -964,97 +964,17 @@ def leave_room(request: Request, room_code: str, player: PlayerCreate):
 @app.post(f"{settings.API_V1_STR}/start-game/")
 @limiter.limit(f"{settings.RATE_LIMIT_PER_MINUTE}/minute")
 async def start_game(request: Request, game: GameStart):
-    with get_db() as conn:
-        try:
+    try:
+        with get_db() as conn:
             # Get room and player count
             cursor = conn.execute(
                 """
-                SELECT r.*, COUNT(p.id) as player_count,
-                       (SELECT username FROM players WHERE id = r.host_id) as host_name
-                FROM rooms r
-                LEFT JOIN players p ON p.room_code = r.code AND p.status != 'inactive'
-                WHERE r.code = ?
-                GROUP BY r.id
+                SELECT COUNT(*) as player_count
+                FROM room_players
+                WHERE room_code = ?
                 """,
                 (game.room_code,)
             )
-            result = cursor.fetchone()
-            
-            if not result:
-                raise HTTPException(status_code=404, detail="Room not found")
-            
-            if game.game_type not in GAME_TYPES:
-                raise HTTPException(status_code=400, detail="Invalid game type")
-            
-            # Validate player count
-            game_config = GAME_TYPES[game.game_type]
-            player_count = result['player_count']
-            
-            if player_count < game_config["min_players"]:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Need at least {game_config['min_players']} players to start"
-                )
-            if player_count > game_config["max_players"]:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Maximum {game_config['max_players']} players allowed"
-                )
-            
-            # Get all active players
-            cursor = conn.execute(
-                """
-                SELECT id, username, status
-                FROM players 
-                WHERE room_code = ? AND status != 'inactive'
-                ORDER BY id
-                """,
-                (game.room_code,)
-            )
-            players = cursor.fetchall()
-            
-            # Initialize game instance
-            game_classes = {
-                "snap": snap.SnapGame,
-                "go_fish": go_fish.GoFishGame,
-                "bluff": bluff.BluffGame,
-                "scat": scat.ScatGame,
-                "rummy": rummy.RummyGame,
-                "kings_corner": kings_corner.KingsCornerGame,
-                "spades": spades.SpadesGame,
-                "spoons": spoons.SpoonsGame
-            }
-            
-            game_instance = game_classes[game.game_type](game.room_code)
-            
-            # Add all players to the game instance
-            host_id = str(result['host_id'])
-            for player in players:
-                player_id = str(player['id'])
-                game_instance.add_player(
-                    player_id,
-                    player['username'],
-                    is_host=(player_id == host_id)
-                )
-            
-            # Start the game - this will deal cards
-            game_instance.start_game()
-            
-            # Get initial state
-            initial_state = game_instance.get_game_state()
-            
-            # Format player states
-            player_states = {
-                str(player['id']): {
-                    "id": str(player['id']),
-                    "name": player['username'],
-                    "score": 0,
-                    "status": "active",
-                    "game_data": {},
-                    "isHost": str(player['id']) == host_id,
-                    "hand_size": len(game_instance.players[str(player['id'])].hand)
-                } for player in players
-            }
             
             # Create game state record
             cursor = conn.execute(
@@ -1066,53 +986,14 @@ async def start_game(request: Request, game: GameStart):
                 (
                     game.room_code,
                     game.game_type,
-                    json.dumps(player_states),
+                    json.dumps(players),
                     json.dumps(initial_state)
                 )
             )
             game_state_id = cursor.fetchone()['id']
-            
-            # Update room's game state
-            conn.execute(
-                """
-                UPDATE rooms
-                SET game_state = ?, last_activity = ?
-                WHERE code = ?
-                """,
-                (str(game_state_id), datetime.utcnow().isoformat(), game.room_code)
-            )
-            
-            conn.commit()
-            
-            # Broadcast game start to all players
-            await manager.broadcast_to_room(
-                {
-                    "type": "game_start",
-                    "game_type": game.game_type,
-                    "players": player_states,
-                    "config": GAME_TYPES[game.game_type],
-                    "host_name": result['host_name'],
-                    "initial_state": initial_state
-                },
-                game.room_code
-            )
-            
-            return {
-                "message": "Game started successfully",
-                "game_state_id": game_state_id,
-                "game_type": game.game_type,
-                "players": player_states,
-                "initial_state": initial_state
-            }
-            
-        except sqlite3.Error as e:
-            conn.rollback()
-            logger.error(f"Error starting game: {e}")
-            raise HTTPException(status_code=500, detail="Error starting game")
-        except Exception as e:
-            conn.rollback()
-            logger.error(f"Error starting game: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error starting game: {e}")
+        raise HTTPException(status_code=500, detail="Error starting game")
 
 @app.post("/end-game/")
 @app.post(f"{settings.API_V1_STR}/end-game/")
@@ -1397,7 +1278,7 @@ async def game_action(request: Request, action: GameAction):
                             if not all_hands_valid:
                                 logger.info("Some hands were invalid, reinitializing game")
                                 game_instance.deck.reset()
-                                game_instance.deal_initial_cards()
+                                game_instance.start_game()
                             
                             # Restore game flow control
                             if 'current_player_idx' in game_data:
@@ -1427,13 +1308,13 @@ async def game_action(request: Request, action: GameAction):
                             # Reinitialize game if restoration fails
                             game_instance.deck.reset()
                             game_instance.deck.shuffle()
-                            game_instance.deal_initial_cards()
+                            game_instance.start_game()
                     else:
                         # Initialize new game state
                         logger.info("Initializing new game state")
                         game_instance.deck.reset()
                         game_instance.deck.shuffle()
-                        game_instance.deal_initial_cards()
+                        game_instance.start_game()
                 
                 # Handle get_state action type for all games
                 if action.action_type == "get_state":

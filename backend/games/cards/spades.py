@@ -247,7 +247,7 @@ class SpadesGame(BaseGame):
                 self.deck.reset()
                 
                 # Deal new hand
-                self.deal_initial_cards()
+                super().start_game()
                 
                 # Move to bidding phase
                 self.state = GameState.STARTING

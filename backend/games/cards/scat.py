@@ -220,7 +220,7 @@ class ScatGame(BaseGame):
                 
                 # Shuffle and deal new hands
                 self.deck.shuffle()
-                self.deal_initial_cards()
+                super().start_game()
                 
                 # Move to next round
                 self.state = GameState.PLAYING
