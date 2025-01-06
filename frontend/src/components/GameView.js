@@ -10,6 +10,7 @@ function GameView() {
   const [ws, setWs] = useState(null);
   const [selectedCards, setSelectedCards] = useState([]);
   const { username, gameType, isHost } = location.state || {};
+  const isCurrentPlayer = gameState?.current_player === playerId;
 
   const BASE_URL = "https://overtime-cards-api.onrender.com/api/v1";
 
@@ -210,8 +211,6 @@ function GameView() {
 
   const renderGameCenter = () => {
     if (!gameState) return null;
-
-    const isCurrentPlayer = gameState.current_player === playerId;
 
     switch (gameType) {
       case 'spoons':
