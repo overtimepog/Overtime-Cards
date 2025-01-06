@@ -65,6 +65,7 @@ class Deck:
                 self.cards.append(Card(rank, suit))
         self.shuffle()
         if len(self.cards) != 52:
+            print(f"Deck initialization error: {len(self.cards)} cards instead of 52")
             raise ValueError(f"Deck initialization error: {len(self.cards)} cards instead of 52")
     
     def shuffle(self):
@@ -90,6 +91,7 @@ class Deck:
         """Deal cards to players"""
         total_cards_needed = len(players) * cards_per_player
         if total_cards_needed > len(self.cards):
+            print(f"Deck initialization error: {len(self.cards)} cards instead of 52")
             raise ValueError(f"Not enough cards to deal. Need {total_cards_needed}, have {len(self.cards)}")
             
         # Deal cards one at a time to each player
@@ -97,6 +99,7 @@ class Deck:
             for player in players:
                 card = self.draw()
                 if not card:  # This shouldn't happen since we checked counts
+                    print(f"Deck initialization error: {len(self.cards)} cards instead of 52")
                     raise ValueError("Unexpected error: ran out of cards while dealing")
                 player.hand.append(card)
 

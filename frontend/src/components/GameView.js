@@ -39,11 +39,10 @@ function GameView() {
         
         if (data.type === 'game_state') {
           console.log('Setting game state from:', data);
-          // Handle initial game state
           const newState = data.state || {};
           console.log('New game state to set:', newState);
           
-          // Ensure we have a valid players object with proper hand data
+          // Ensure we have a valid players object
           if (!newState.players) {
             newState.players = {};
           }
@@ -52,15 +51,17 @@ function GameView() {
           Object.keys(newState.players).forEach(id => {
             const strId = String(id);
             if (newState.players[strId]) {
+              // Keep the hand array if it exists for the current player
+              const currentHand = strId === String(playerId) ? 
+                (newState.players[strId].hand || []).map(card => ({
+                  rank: card.rank,
+                  suit: card.suit
+                })) : [];
+
               newState.players[strId] = {
                 ...newState.players[strId],
                 id: strId,
-                hand: strId === String(playerId) ? 
-                  (newState.players[strId].hand || []).map(card => ({
-                    ...card,
-                    rank: card.rank,
-                    suit: card.suit
-                  })) : []
+                hand: currentHand
               };
             }
           });
