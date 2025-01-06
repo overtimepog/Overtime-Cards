@@ -970,11 +970,43 @@ async def start_game(request: Request, game: GameStart):
             cursor = conn.execute(
                 """
                 SELECT COUNT(*) as player_count
-                FROM room_players
-                WHERE room_code = ?
+                FROM players
+                WHERE room_code = ? AND status != 'inactive'
                 """,
                 (game.room_code,)
             )
+            player_count = cursor.fetchone()['player_count']
+            
+            # Get game requirements
+            game_config = GAME_TYPES.get(game.game_type)
+            if not game_config:
+                raise HTTPException(status_code=400, detail="Invalid game type")
+                
+            # Validate player count
+            if player_count < game_config['min_players'] or player_count > game_config['max_players']:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Game requires {game_config['min_players']}-{game_config['max_players']} players"
+                )
+            
+            # Get all players in room
+            cursor = conn.execute(
+                """
+                SELECT id, username, status
+                FROM players
+                WHERE room_code = ? AND status != 'inactive'
+                """,
+                (game.room_code,)
+            )
+            players = [dict(row) for row in cursor.fetchall()]
+            
+            # Initialize game state
+            initial_state = {
+                'room_code': game.room_code,
+                'game_type': game.game_type,
+                'players': players,
+                'state': GameState.STARTING.value
+            }
             
             # Create game state record
             cursor = conn.execute(
@@ -991,9 +1023,34 @@ async def start_game(request: Request, game: GameStart):
                 )
             )
             game_state_id = cursor.fetchone()['id']
+            
+            # Update room with game state
+            conn.execute(
+                """
+                UPDATE rooms 
+                SET game_state = ?, last_activity = ?
+                WHERE code = ?
+                """,
+                (game_state_id, datetime.utcnow().isoformat(), game.room_code)
+            )
+            
+            conn.commit()
+            
+            # Broadcast game start to all players
+            await manager.broadcast_to_room(
+                {
+                    "type": "game_started",
+                    "game_type": game.game_type,
+                    "state": initial_state
+                },
+                game.room_code
+            )
+            
+            return {"message": "Game started successfully", "game_state_id": game_state_id}
+            
     except Exception as e:
         logger.error(f"Error starting game: {e}")
-        raise HTTPException(status_code=500, detail="Error starting game")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/end-game/")
 @app.post(f"{settings.API_V1_STR}/end-game/")
