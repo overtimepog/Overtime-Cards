@@ -4,71 +4,44 @@ from .models import BaseGame, Card, GameState, Player, Rank, Suit
 class SpadesGame(BaseGame):
     def __init__(self, room_code: str):
         super().__init__(room_code)
-        self.bids: Dict[str, int] = {}  # Player ID to bid
+        self.current_trick: List[Tuple[str, Card]] = []  # List of (player_id, card)
+        self.tricks_won: Dict[str, int] = {}  # player_id -> tricks won
+        self.bids: Dict[str, int] = {}  # player_id -> bid
+        self.scores: Dict[str, int] = {}  # player_id -> score
+        self.bags: Dict[str, int] = {}  # player_id -> bags
+        self.spades_broken = False
+        self.target_score = 500
         self.required_players = 4  # Spades requires exactly 4 players
-        self.tricks_won: Dict[str, int] = {}  # Player ID to tricks won
-        self.current_trick: List[Tuple[str, Card]] = []  # List of (player_id, card) tuples
-        self.last_action: Optional[Dict[str, Any]] = None
-        self.spades_broken = False  # True once spades have been played
-        self.scores: Dict[str, int] = {}  # Player ID to total score
-        self.bags: Dict[str, int] = {}  # Player ID to number of bags (overtricks)
-        self.target_score = 500  # Game ends when a team reaches this score
-        
+
     def _calculate_min_cards_needed(self) -> int:
         """Calculate minimum cards needed for Spades"""
-        # Spades requires exactly 52 cards (13 per player)
-        return 52  # Full deck required
+        # In Spades, each player gets 13 cards
+        return len(self.players) * 13
 
     def start_game(self):
         """Start the game with validation for exactly 4 players"""
-        try:
-            if len(self.players) != self.required_players:
-                raise ValueError(f"Spades requires exactly {self.required_players} players (currently have {len(self.players)})")
-            super().start_game()
-        except Exception as e:
-            raise ValueError(f"Failed to start game: {str(e)}")
-
-    def deal_initial_cards(self):
-        """Deal all cards evenly among players"""
-        if not self.players:
-            raise ValueError("No players to deal cards to")
+        if len(self.players) != self.required_players:
+            raise ValueError(f"Spades requires exactly {self.required_players} players (currently have {len(self.players)})")
             
-        try:
-            # Validate we have exactly 52 cards (13 per player)
-            if len(self.deck.cards) != 52:
-                raise ValueError("Spades requires a full deck of 52 cards")
+        # Initialize player state
+        for player in self.players.values():
+            player_id = str(player.id)
+            self.tricks_won[player_id] = 0
+            self.bids[player_id] = -1  # -1 indicates bid not yet made
             
-            # Pre-calculate all hands
-            hands = []
-            for _ in range(len(self.players)):
-                hand = self.deck.draw_multiple(13)  # Each player gets exactly 13 cards
-                if len(hand) != 13:
-                    raise ValueError("Not enough cards to deal")
-                hands.append(hand)
-            
-            # Assign hands and initialize player states
-            for player, hand in zip(self.players.values(), hands):
-                # Sort hand by suit and rank
-                player.hand = sorted(hand, key=lambda card: (
-                    card.suit.value,
-                    list(Rank).index(card.rank)
-                ))
-                
-                # Initialize player state
-                player_id = str(player.id)
-                self.tricks_won[player_id] = 0
-                self.bids[player_id] = -1  # -1 indicates bid not yet made
-                
-                # Initialize scores if not already set
-                if player_id not in self.scores:
-                    self.scores[player_id] = 0
-                    self.bags[player_id] = 0
-                
-            # Set initial current player
-            self.current_player_idx = 0
-            
-        except Exception as e:
-            raise ValueError(f"Failed to deal initial cards: {str(e)}")
+            # Initialize scores if not already set
+            if player_id not in self.scores:
+                self.scores[player_id] = 0
+                self.bags[player_id] = 0
+        
+        super().start_game()
+        
+        # Sort each player's hand by suit and rank
+        for player in self.players.values():
+            player.hand = sorted(player.hand, key=lambda card: (
+                card.suit.value,
+                list(Rank).index(card.rank)
+            ))
 
     def make_bid(self, player_id: str, bid: int) -> Dict[str, Any]:
         """Player makes a bid for number of tricks they expect to win"""

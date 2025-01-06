@@ -4,41 +4,22 @@ from .models import BaseGame, Card, GameState, Player, Rank
 class GoFishGame(BaseGame):
     def __init__(self, room_code: str):
         super().__init__(room_code)
-        self.sets: Dict[str, List[List[Card]]] = {}  # Player ID to list of completed sets
+        self.sets: Dict[str, List[List[Card]]] = {}  # player_id -> list of sets
         self.last_action: Optional[Dict[str, Any]] = None
-        self.cards_per_hand = 7  # Standard Go Fish uses 7 cards for 2-3 players, 5 for 4-6 players
-        
+
     def _calculate_min_cards_needed(self) -> int:
         """Calculate minimum cards needed for Go Fish"""
-        # Adjust cards per hand based on player count
-        cards_needed = 7 if len(self.players) <= 3 else 5
-        # Need enough cards for each player's initial hand plus some for fishing
-        return (len(self.players) * cards_needed) + len(self.players)
+        # In Go Fish, deal 7 cards if 2-3 players, 5 cards if 4-6 players
+        if len(self.players) <= 3:
+            return len(self.players) * 7
+        return len(self.players) * 5
 
-    def deal_initial_cards(self):
-        """Deal initial cards to players"""
-        if not self.players:
-            raise ValueError("No players to deal cards to")
-            
-        try:
-            # Initialize game state
-            for player in self.players.values():
-                # Deal cards
-                cards = self.deck.draw_multiple(self.cards_per_hand)
-                if not cards or len(cards) < self.cards_per_hand:
-                    raise ValueError("Not enough cards to deal")
-                player.hand = cards
-                
-                # Initialize melds
-                self.sets[str(player.id)] = []
-
-            # Set initial current player
-            self.current_player_idx = 0
-            
-            # Save initial game state
-            return self.get_game_state()
-        except Exception as e:
-            raise ValueError(f"Failed to deal initial cards: {str(e)}")
+    def start_game(self):
+        """Start the game with initial setup"""
+        # Initialize sets for each player
+        for player in self.players.values():
+            self.sets[str(player.id)] = []
+        super().start_game()
 
     def _check_for_sets(self, player: Player) -> List[List[Card]]:
         """Check and remove any completed sets from player's hand"""

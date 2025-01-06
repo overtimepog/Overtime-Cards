@@ -1,50 +1,24 @@
 from typing import Dict, Any, Optional, List
-from .models import BaseGame, Card, GameState
+from .models import BaseGame, Card, GameState, deal_initial_cards
 import time
 
 class SnapGame(BaseGame):
     def __init__(self, room_code: str):
         super().__init__(room_code)
         self.center_pile: List[Card] = []
-        self.last_snap_time: Dict[str, float] = {}  # Player ID to timestamp
+        self.last_snap_time: Dict[str, float] = {}  # player_id -> last snap time
         self.snap_window = 0.1  # 100ms window for simultaneous snaps
         self.last_card_time: Optional[float] = None
         self.card_play_timeout = 5.0  # 5 seconds to play a card
-        self.cards_per_player = 4  # Snap deals 4 cards to each player
 
     def _calculate_min_cards_needed(self) -> int:
         """Calculate minimum cards needed for Snap"""
-        # Snap needs at least 4 cards per player to be playable
-        return len(self.players) * self.cards_per_player
-
-    def deal_initial_cards(self):
-        """Deal initial cards to players in Snap"""
-        try:
-            # Validate we have enough cards
-            total_cards_needed = len(self.players) * self.cards_per_player
-            if len(self.deck.cards) < total_cards_needed:
-                raise ValueError(f"Not enough cards to deal. Need {total_cards_needed}, have {len(self.deck.cards)}")
-
-            # Pre-calculate all player hands to ensure fair dealing
-            hands = []
-            for _ in range(len(self.players)):
-                hand = self.deck.draw_multiple(self.cards_per_player)
-                if len(hand) != self.cards_per_player:
-                    raise ValueError(f"Could not deal {self.cards_per_player} cards to each player")
-                hands.append(hand)
-
-            # Assign hands to players
-            for player, hand in zip(self.players.values(), hands):
-                player.hand = hand
-
-        except Exception as e:
-            raise ValueError(f"Failed to deal initial cards: {str(e)}")
+        # In Snap, cards are divided equally among players
+        return 52  # Use full deck
 
     def start_game(self):
         """Start the Snap game by dealing cards and setting initial state"""
-        self.deal_initial_cards()
-        self.state = GameState.PLAYING
-        self.current_player_idx = 0
+        super().start_game()
 
     def play_card(self, player_id: str) -> Dict[str, Any]:
         """Play a card from the player's hand to the center"""

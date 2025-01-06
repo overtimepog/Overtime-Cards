@@ -6,46 +6,26 @@ class SpoonsGame(BaseGame):
     def __init__(self, room_code: str):
         super().__init__(room_code)
         self.spoons: int = 0  # Number of spoons in play
+        self.total_spoons: int = 0  # Total number of spoons at game start
+        self.grabbed_spoons: Dict[str, bool] = {}  # Track which players have grabbed spoons
         self.last_action: Optional[Dict[str, Any]] = None
         self.cards_per_hand = 4  # Each player gets 4 cards
+        self.spoons_taken = set()  # Set of player IDs who have taken spoons
 
     def _calculate_min_cards_needed(self) -> int:
         """Calculate minimum cards needed for Spoons"""
-        # Need 4 cards per player
-        return len(self.players) * self.cards_per_hand
+        # In Spoons, each player gets 4 cards
+        return len(self.players) * 4
 
     def start_game(self):
         """Start the Spoons game by dealing cards and setting initial state"""
-        self.spoons = len(self.players) - 1
-        self.deal_initial_cards()
-        self.state = GameState.PLAYING
-        self.current_player_idx = 0
-
-    def deal_initial_cards(self):
-        """Deal 4 cards to each player"""
         if len(self.players) < 3:
             raise ValueError("Spoons requires at least 3 players")
             
-        try:
-            # Validate we have enough cards
-            total_cards_needed = len(self.players) * self.cards_per_hand
-            if len(self.deck.cards) < total_cards_needed:
-                raise ValueError(f"Not enough cards to deal. Need {total_cards_needed}, have {len(self.deck.cards)}")
-            
-            # Pre-calculate all hands
-            hands = []
-            for _ in range(len(self.players)):
-                hand = self.deck.draw_multiple(self.cards_per_hand)
-                if len(hand) != self.cards_per_hand:
-                    raise ValueError(f"Could not deal {self.cards_per_hand} cards to each player")
-                hands.append(hand)
-            
-            # Assign hands to players
-            for player, hand in zip(self.players.values(), hands):
-                player.hand = hand
-                
-        except Exception as e:
-            raise ValueError(f"Failed to deal initial cards: {str(e)}")
+        self.total_spoons = len(self.players) - 1
+        self.spoons = self.total_spoons
+        self.grabbed_spoons = {}  # Reset grabbed spoons
+        super().start_game()
 
     def play_turn(self, player_id: str, card_index: int) -> Dict[str, Any]:
         """Player plays a card and passes it to the next player"""
@@ -95,11 +75,62 @@ class SpoonsGame(BaseGame):
                 return True
         return False
 
+    def grab_spoon(self, player_id: str) -> Dict[str, Any]:
+        """Player attempts to grab a spoon"""
+        if self.state != GameState.PLAYING:
+            raise ValueError("Game is not in playing state")
+
+        player = self.players.get(player_id)
+        if not player:
+            raise ValueError("Player not found")
+
+        if self.spoons <= 0:
+            raise ValueError("No spoons left to grab")
+
+        if player_id in self.grabbed_spoons:
+            raise ValueError("You already grabbed a spoon")
+
+        # Check if player has four of a kind
+        has_four = self.has_four_of_a_kind(player)
+        
+        # Record that this player grabbed a spoon
+        self.grabbed_spoons[player_id] = True
+        
+        # Decrement spoon count
+        self.spoons -= 1
+        
+        # If this was the last spoon, end the game
+        if self.spoons == 0:
+            self.state = GameState.GAME_END
+            # The player without a spoon loses
+            for pid in self.players:
+                if pid not in self.grabbed_spoons:
+                    self.loser = pid
+                    break
+        
+        self.last_action = {
+            'action': 'grab_spoon',
+            'player': player_id,
+            'had_four_of_a_kind': has_four,
+            'spoon_index': self.spoons  # Index of the spoon that was grabbed
+        }
+        
+        return {
+            'action': 'spoon_grabbed',
+            'player': player_id,
+            'spoons_left': self.spoons,
+            'had_four_of_a_kind': has_four,
+            'spoon_index': self.spoons,
+            'game_state': self.state.value
+        }
+
     def get_game_state(self, for_player_id: Optional[str] = None) -> Dict[str, Any]:
         """Get the current game state"""
         base_state = super().get_game_state(for_player_id)
         spoons_state = {
             'spoons': self.spoons,
+            'total_spoons': self.total_spoons,
+            'grabbed_spoons': self.grabbed_spoons,
             'last_action': self.last_action
         }
         return {**base_state, **spoons_state}

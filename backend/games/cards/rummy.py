@@ -9,33 +9,22 @@ class RummyGame(BaseGame):
         self.melds: Dict[str, List[List[Card]]] = {}  # Player ID to list of melds
         self.cards_per_hand = 7  # Standard Rummy deals 7 cards
 
-    def deal_initial_cards(self):
-        """Deal initial cards to players"""
-        if not self.players:
-            raise ValueError("No players to deal cards to")
-            
-        try:
-            # Initialize game state
-            for player in self.players.values():
-                # Deal cards
-                cards = self.deck.draw_multiple(self.cards_per_hand)
-                if not cards or len(cards) < self.cards_per_hand:
-                    raise ValueError("Not enough cards to deal")
-                player.hand = cards
-                
-                # Initialize melds
-                self.melds[str(player.id)] = []
+    def _calculate_min_cards_needed(self) -> int:
+        """Calculate minimum cards needed for Rummy"""
+        # Need cards for each player plus one for discard pile
+        return (len(self.players) * self.cards_per_hand) + 1
 
-            # Start discard pile
-            first_card = self.deck.draw()
-            if not first_card:
-                raise ValueError("No card for discard pile")
-            self.discard_pile.append(first_card)
-            
-            # Set initial current player
-            self.current_player_idx = 0
-        except Exception as e:
-            raise ValueError(f"Failed to deal initial cards: {str(e)}")
+    def _initialize_game_state(self):
+        """Initialize Rummy-specific state after dealing cards"""
+        # Initialize melds for each player
+        for player in self.players.values():
+            self.melds[str(player.id)] = []
+
+        # Start discard pile
+        first_card = self.deck.draw()
+        if not first_card:
+            raise ValueError("No card for discard pile")
+        self.discard_pile = [first_card]
 
     def _is_valid_run(self, cards: List[Card]) -> bool:
         """Check if cards form a valid run (sequential cards of same suit)"""

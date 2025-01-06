@@ -9,73 +9,43 @@ class KingsCornerGame(BaseGame):
     def __init__(self, room_code: str):
         super().__init__(room_code)
         self.piles: Dict[str, List[Card]] = {}  # Pile ID to list of cards
-        self.pile_types: Dict[str, str] = {}  # Pile ID to pile type
+        self.pile_types: Dict[str, PileType] = {}  # Pile ID to pile type
         self.last_action: Optional[Dict[str, Any]] = None
-        self.cards_per_hand = 7
-        
+        self.cards_per_hand = 7  # Kings Corner deals 7 cards to each player
+
     def _calculate_min_cards_needed(self) -> int:
         """Calculate minimum cards needed for Kings Corner"""
-        # Need enough cards for:
-        # - Each player's initial hand (7 cards each)
-        # - 4 foundation piles (1 card each)
-        # - Some cards for gameplay (at least 4 more)
-        return (len(self.players) * self.cards_per_hand) + 8
+        # Need cards for each player plus 4 for foundation piles
+        return (len(self.players) * self.cards_per_hand) + 4
 
-    def deal_initial_cards(self):
-        """Deal initial cards and set up foundation piles"""
-        if not self.players:
-            raise ValueError("No players to deal cards to")
+    def _initialize_game_state(self):
+        """Initialize Kings Corner-specific state after dealing cards"""
+        # Set up foundation piles (4 in center)
+        for i in range(4):
+            pile_id = f'foundation_{i}'
+            self.piles[pile_id] = []
+            self.pile_types[pile_id] = PileType.FOUNDATION
             
-        try:
-            # Validate we have enough cards before dealing
-            total_cards_needed = (len(self.players) * self.cards_per_hand) + 4  # +4 for foundation piles
-            if len(self.deck.cards) < total_cards_needed:
-                raise ValueError("Not enough cards to deal")
-            
-            # Pre-calculate all player hands
-            hands = []
-            for _ in range(len(self.players)):
-                hand = self.deck.draw_multiple(self.cards_per_hand)
-                if len(hand) != self.cards_per_hand:
-                    raise ValueError("Not enough cards to deal")
-                hands.append(hand)
-            
-            # Assign hands to players
-            for player, hand in zip(self.players.values(), hands):
-                player.hand = hand
-
-            # Set up foundation piles (4 in center)
-            for i in range(4):
-                pile_id = f'foundation_{i}'
-                self.piles[pile_id] = []
-                self.pile_types[pile_id] = PileType.FOUNDATION
+            # Draw and validate card for foundation
+            card = self.deck.draw()
+            if not card:
+                raise ValueError("Not enough cards for foundation piles")
                 
-                # Draw and validate card for foundation
+            # If it's a King, put it back and draw another
+            while card.rank == Rank.KING:
+                self.deck.cards.append(card)
+                self.deck.shuffle()
                 card = self.deck.draw()
                 if not card:
                     raise ValueError("Not enough cards for foundation piles")
-                    
-                # If it's a King, put it back and draw another
-                while card.rank == Rank.KING:
-                    self.deck.cards.append(card)
-                    self.deck.shuffle()
-                    card = self.deck.draw()
-                    if not card:
-                        raise ValueError("Not enough cards for foundation piles")
-                
-                self.piles[pile_id].append(card)
-
-            # Set up corner piles (4 in corners, initially empty)
-            for i in range(4):
-                pile_id = f'corner_{i}'
-                self.piles[pile_id] = []
-                self.pile_types[pile_id] = PileType.CORNER
-                
-            # Set initial current player
-            self.current_player_idx = 0
             
-        except Exception as e:
-            raise ValueError(f"Failed to deal initial cards: {str(e)}")
+            self.piles[pile_id].append(card)
+
+        # Set up corner piles (4 in corners, initially empty)
+        for i in range(4):
+            pile_id = f'corner_{i}'
+            self.piles[pile_id] = []
+            self.pile_types[pile_id] = PileType.CORNER
 
     def _is_card_black(self, card: Card) -> bool:
         """Check if a card is black (clubs or spades)"""

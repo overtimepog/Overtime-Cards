@@ -10,49 +10,25 @@ class ScatGame(BaseGame):
         self.final_round = False  # True when someone knocks
         self.lives = {}  # Player ID to number of lives (usually 3)
         self.INITIAL_LIVES = 3
-        
+
     def _calculate_min_cards_needed(self) -> int:
         """Calculate minimum cards needed for Scat"""
-        # Need 3 cards per player plus 1 for discard pile
-        return (len(self.players) * 3) + 1
+        # In Scat, each player gets 3 cards
+        return len(self.players) * 3
 
-    def deal_initial_cards(self):
-        """Deal 3 cards to each player"""
-        if not self.players:
-            raise ValueError("No players to deal cards to")
-            
-        try:
-            # Validate we have enough cards before dealing
-            total_cards_needed = (len(self.players) * 3) + 1  # 3 per player + 1 for discard
-            if len(self.deck.cards) < total_cards_needed:
-                raise ValueError("Not enough cards to deal")
-            
-            # Pre-calculate all hands
-            hands = []
-            for _ in range(len(self.players)):
-                hand = self.deck.draw_multiple(3)
-                if len(hand) != 3:
-                    raise ValueError("Not enough cards to deal")
-                hands.append(hand)
-            
-            # Draw card for discard pile before assigning hands
-            first_card = self.deck.draw()
-            if not first_card:
-                raise ValueError("Not enough cards for discard pile")
-            
-            # Assign hands and initialize lives
-            for player, hand in zip(self.players.values(), hands):
-                player.hand = hand
-                self.lives[str(player.id)] = self.INITIAL_LIVES
-            
-            # Start discard pile
-            self.discard_pile = [first_card]
-            
-            # Set initial current player
-            self.current_player_idx = 0
-            
-        except Exception as e:
-            raise ValueError(f"Failed to deal initial cards: {str(e)}")
+    def start_game(self):
+        """Start the game with initial setup"""
+        # Initialize lives for each player
+        for player in self.players.values():
+            self.lives[str(player.id)] = self.INITIAL_LIVES
+        
+        super().start_game()
+        
+        # Start discard pile
+        first_card = self.deck.draw()
+        if not first_card:
+            raise ValueError("Not enough cards for discard pile")
+        self.discard_pile = [first_card]
 
     def _calculate_hand_value(self, hand: List[Card]) -> int:
         """Calculate the highest value possible in a single suit"""

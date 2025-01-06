@@ -188,12 +188,19 @@ class BaseGame:
                 raise ValueError(f"Not enough cards in deck. Need {min_cards_needed}, have {total_cards}")
             
             # Deal initial cards
-            self.deal_initial_cards()
+            if not self.players:
+                raise ValueError("No players to deal cards to")
             
-            # Ensure current player is set
-            if not self.current_player and self.players:
-                self.current_player_idx = 0
-                
+            # Calculate cards per player based on minimum needed
+            min_cards = self._calculate_min_cards_needed()
+            cards_per_player = min_cards // len(self.players)
+            
+            # Use the deck's deal method to distribute cards
+            self.deck.deal(list(self.players.values()), cards_per_player)
+            
+            # Set initial current player
+            self.current_player_idx = 0
+            
             # Ensure all players have their hands set
             for player in self.players.values():
                 if not hasattr(player, 'hand'):
@@ -212,18 +219,6 @@ class BaseGame:
     def next_turn(self):
         """Advance to the next player's turn"""
         self.current_player_idx = (self.current_player_idx + self.direction) % len(self.players)
-
-    def deal_initial_cards(self):
-        """Deal initial cards to players"""
-        try:
-            # Calculate cards per player based on minimum needed
-            min_cards = self._calculate_min_cards_needed()
-            cards_per_player = min_cards // len(self.players)
-            
-            # Deal cards using the deck's deal method
-            self.deck.deal(self.player_order, cards_per_player)
-        except Exception as e:
-            raise ValueError(f"Failed to deal initial cards: {str(e)}")
 
     def get_game_state(self, for_player_id: Optional[str] = None) -> Dict[str, Any]:
         """Get the current game state - override in specific games"""

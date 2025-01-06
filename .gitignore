@@ -63,5 +63,4 @@ test.db
 frontend/node_modules/
 frontend/build/
 frontend/dist/
-frontend/public/
 node_modules/

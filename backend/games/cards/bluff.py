@@ -5,54 +5,15 @@ import random
 class BluffGame(BaseGame):
     def __init__(self, room_code: str):
         super().__init__(room_code)
-        self.center_pile: List[Tuple[List[Card], Rank]] = []  # List of (cards, claimed rank) tuples
+        self.center_pile: List[Tuple[List[Card], Rank]] = []  # List of (cards, claimed_rank)
         self.last_action: Optional[Dict[str, Any]] = None
         self.current_rank: Optional[Rank] = None  # The rank that must be played next
         self.cards_per_play = 1  # Number of cards that must be played (can increase with multiple same-rank cards)
-        
+
     def _calculate_min_cards_needed(self) -> int:
         """Calculate minimum cards needed for Bluff"""
-        # Bluff needs at least 4 cards per player to be playable
-        # (enough for each player to have multiple turns)
-        return len(self.players) * 4
-
-    def deal_initial_cards(self):
-        """Deal all cards evenly among players"""
-        if not self.players:
-            raise ValueError("No players to deal cards to")
-            
-        # Calculate cards per player
-        total_cards = len(self.deck.cards)
-        num_players = len(self.players)
-        cards_per_player = total_cards // num_players
-        
-        # Ensure minimum cards per player
-        if cards_per_player < 4:  # Need at least 4 cards per player for a meaningful game
-            raise ValueError("Not enough cards to deal")
-            
-        # Pre-calculate all hands
-        hands = []
-        cards_dealt = 0
-        
-        # First deal equal number of cards to each player
-        for _ in range(num_players):
-            hand = self.deck.draw_multiple(cards_per_player)
-            if len(hand) != cards_per_player:
-                raise ValueError("Not enough cards to deal")
-            hands.append(hand)
-            cards_dealt += cards_per_player
-        
-        # Deal any remaining cards to the last player
-        remaining_cards = self.deck.draw_multiple(total_cards - cards_dealt)
-        if remaining_cards:
-            hands[-1].extend(remaining_cards)
-        
-        # Assign hands to players and sort them
-        for player, hand in zip(self.players.values(), hands):
-            player.hand = sorted(hand, key=lambda card: (card.rank.value, card.suit.value))
-            
-        # Set initial current player
-        self.current_player_idx = 0
+        # In Bluff, cards are divided equally among players
+        return 52  # Use full deck
 
     def play_cards(self, player_id: str, card_indices: List[int], claimed_rank: str) -> Dict[str, Any]:
         """Play cards from hand, claiming they are of a specific rank"""
