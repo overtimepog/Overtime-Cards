@@ -222,7 +222,7 @@ function GameView() {
     const mappedRank = rankMap[rank] || rank;
     const mappedSuit = suitMap[suit] || suit;
     
-    // Use the correct file naming format: suit_rank.png
+    // Use the correct file naming format: spades_K.png
     const cardImagePath = `/cards/${mappedSuit}_${mappedRank}.png`;
     console.log('Card image path:', cardImagePath);
     
@@ -241,7 +241,7 @@ function GameView() {
         }}
         onError={(e) => {
           console.error('Failed to load card image:', cardImagePath);
-          e.target.src = '/cards/back_light.png';
+          e.target.src = '/cards/back_dark.png';
         }}
       />
     );
@@ -410,7 +410,19 @@ function GameView() {
                     backgroundColor: id === gameState.current_player ? '#e8f5e9' : 'transparent'
                   }}
                 >
-                  <span className="player-name">{player.name}</span>
+                  <div className="player-name" style={{ 
+                    color: 'white', 
+                    marginBottom: '10px',
+                    fontSize: '1.2em',
+                    fontWeight: 'bold',
+                    textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
+                    backgroundColor: gameState.current_player === id ? 'rgba(46, 125, 50, 0.8)' : 'rgba(0,0,0,0.5)',
+                    padding: '5px 10px',
+                    borderRadius: '5px',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {player.name}
+                  </div>
                   <span className="card-count">{player.hand_size || 0} cards</span>
                   {player.score !== undefined && (
                     <span className="score">Score: {player.score}</span>
