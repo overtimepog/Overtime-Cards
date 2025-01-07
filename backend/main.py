@@ -420,7 +420,6 @@ async def startup_event():
                             "id": player['id'],
                             "username": player['username'],
                             "room_code": player['room_code'],
-                            "status": player['status'],
                             "wins": player['wins']
                         }
                         cache_player(player['id'], player_data)
