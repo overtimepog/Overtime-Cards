@@ -1722,11 +1722,11 @@ async def process_websocket_message(websocket: WebSocket, data: dict, room_code:
                         # Get all active players in the room
                         cursor = conn.execute(
                             """
-                            SELECT DISTINCT id, username, id = r.host_id as is_host
+                            SELECT DISTINCT p.id, p.username, p.id = r.host_id as is_host
                             FROM players p
                             JOIN rooms r ON r.code = p.room_code
                             WHERE p.room_code = ? AND p.last_activity > ?
-                            ORDER BY id
+                            ORDER BY p.id
                             """,
                             (room_code, (datetime.now(UTC) - timedelta(minutes=2)).isoformat())
                         )
