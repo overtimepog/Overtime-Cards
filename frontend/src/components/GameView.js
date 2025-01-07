@@ -26,16 +26,15 @@ const useGameDropZones = (gameState, playerId, handleCardDrop) => {
   const discard = useDropZone('discard', handleCardDrop);
   const center = useDropZone('center', handleCardDrop);
 
-  // Create player drop zones upfront
-  const playerDropZones = {};
-  if (gameState?.players) {
-    const otherPlayerIds = Object.keys(gameState.players).filter(id => id !== playerId);
-    otherPlayerIds.forEach(id => {
-      // Create a drop zone for each player
-      const { isOver, drop } = useDropZone('player', handleCardDrop, id);
-      playerDropZones[id] = { isOver, drop };
-    });
-  }
+  // Predefine all drop zones to ensure consistent hook usage
+  const otherPlayerIds = gameState?.players 
+    ? Object.keys(gameState.players).filter(id => id !== playerId)
+    : [];
+    
+  const playerDropZones = otherPlayerIds.reduce((acc, id) => {
+    acc[id] = useDropZone('player', handleCardDrop, id);
+    return acc;
+  }, {});
 
   const getDropRef = (type, pid = null) => {
     if (type === 'player' && pid) {
