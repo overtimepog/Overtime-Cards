@@ -380,23 +380,72 @@ function GameView() {
     );
   };
 
+  // Create dynamic drop zones based on gameState
+  const generateDropZones = () => {
+    const zones = {
+      foundation: useDropZone('foundation', handleCardDrop),
+      corner: useDropZone('corner', handleCardDrop),
+      meld: useDropZone('meld', handleCardDrop),
+      discard: useDropZone('discard', handleCardDrop),
+      center: useDropZone('center', handleCardDrop),
+      players: {}
+    };
+
+    // Add player-specific drop zones
+    if (gameState?.players) {
+      Object.keys(gameState.players)
+        .filter(id => id !== playerId) // Don't create drop zone for current player
+        .forEach(id => {
+          zones.players[id] = useDropZone('player', handleCardDrop, id);
+        });
+    }
+
+    return zones;
+  };
+
+  const dropZones = generateDropZones();
+
+  // Helper functions to get drop refs and isOver states
+  const getDropRef = (type, playerId = null) => {
+    if (type === 'player' && playerId) {
+      return dropZones.players[playerId]?.drop;
+    }
+    return dropZones[type]?.drop;
+  };
+
+  const getIsOver = (type, playerId = null) => {
+    if (type === 'player' && playerId) {
+      return dropZones.players[playerId]?.isOver;
+    }
+    return dropZones[type]?.isOver;
+  };
+
   const renderPlayerHand = (player, position) => {
     const isCurrentPlayer = player.id === playerId;
     const hand = player.hand || [];
     const handToRender = isCurrentPlayer ? hand : hand.map(() => ({ show_back: true }));
     
+    const dropRef = !isCurrentPlayer ? getDropRef('player', player.id) : null;
+    const isDropOver = !isCurrentPlayer ? getIsOver('player', player.id) : false;
+    
     return (
-      <div style={{
-        ...position,
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: '10px',
-        minWidth: '200px',
-        maxWidth: '400px',
-        overflow: 'visible',
-        zIndex: 1
-      }}>
+      <div 
+        ref={dropRef}
+        style={{
+          ...position,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: '10px',
+          minWidth: '200px',
+          maxWidth: '400px',
+          overflow: 'visible',
+          zIndex: 1,
+          border: isDropOver ? '2px solid gold' : '2px solid transparent',
+          borderRadius: '10px',
+          transition: 'border-color 0.2s ease'
+        }}
+      >
         <div style={{
           backgroundColor: isCurrentPlayer ? 'rgba(255,255,255,0.1)' : 'transparent',
           borderRadius: '10px',
@@ -406,7 +455,7 @@ function GameView() {
           <div style={{
             display: 'flex',
             justifyContent: 'center',
-            paddingLeft: '50px', // Increased padding for more overlap
+            paddingLeft: '50px',
           }}>
             {handToRender.map((card, index) => renderCard(card, index, isCurrentPlayer))}
           </div>
@@ -415,7 +464,7 @@ function GameView() {
             color: 'white',
             marginTop: '10px',
             fontSize: '0.9em',
-            textShadow: '1px 1px 2px rgba(0,0,0,0.5)' // Added text shadow for better visibility
+            textShadow: '1px 1px 2px rgba(0,0,0,0.5)'
           }}>
             {player.name} {isCurrentPlayer ? '(You)' : ''}
             {player.is_host && ' (Host)'}
@@ -1579,69 +1628,6 @@ function GameView() {
 
       default:
         return null;
-    }
-  };
-
-  // Add drop zone hooks for each game type and Go Fish players
-  const { isOver: isOverFoundation, drop: dropFoundation } = useDropZone('foundation', handleCardDrop);
-  const { isOver: isOverCorner, drop: dropCorner } = useDropZone('corner', handleCardDrop);
-  const { isOver: isOverMeld, drop: dropMeld } = useDropZone('meld', handleCardDrop);
-  const { isOver: isOverDiscard, drop: dropDiscard } = useDropZone('discard', handleCardDrop);
-  const { isOver: isOverCenter, drop: dropCenter } = useDropZone('center', handleCardDrop);
-
-  // Create player-specific drop zones for Go Fish
-  const playerDropZones = {};
-  if (gameState?.players && gameType === 'go_fish') {
-    Object.keys(gameState.players).forEach(id => {
-      if (id !== playerId) {
-        const { isOver, drop } = useDropZone('player', handleCardDrop, id);
-        playerDropZones[id] = { isOver, drop };
-      }
-    });
-  }
-
-  // Update the ref assignments in the render functions
-  const getDropRef = (type) => {
-    if (type.startsWith('player_')) {
-      const playerId = type.split('_')[1];
-      return playerDropZones[playerId]?.drop;
-    }
-
-    switch (type) {
-      case 'foundation':
-        return dropFoundation;
-      case 'corner':
-        return dropCorner;
-      case 'meld':
-        return dropMeld;
-      case 'discard':
-        return dropDiscard;
-      case 'center':
-        return dropCenter;
-      default:
-        return null;
-    }
-  };
-
-  const getIsOver = (type) => {
-    if (type.startsWith('player_')) {
-      const playerId = type.split('_')[1];
-      return playerDropZones[playerId]?.isOver;
-    }
-
-    switch (type) {
-      case 'foundation':
-        return isOverFoundation;
-      case 'corner':
-        return isOverCorner;
-      case 'meld':
-        return isOverMeld;
-      case 'discard':
-        return isOverDiscard;
-      case 'center':
-        return isOverCenter;
-      default:
-        return false;
     }
   };
 
