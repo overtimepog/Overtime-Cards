@@ -1267,6 +1267,9 @@ function GameView() {
       overflow: 'hidden',
       display: 'flex',
       flexDirection: 'column',
+      minHeight: '100vh',
+      height: '100%',
+      padding: '20px'
     }}>
       {error && (
         <div className="error-message" style={{
