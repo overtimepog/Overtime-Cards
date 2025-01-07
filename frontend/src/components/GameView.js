@@ -20,10 +20,10 @@ const Card = React.memo(({ card, index, isInHand }) => {
       style={{
         position: 'relative',
         display: 'inline-block',
-        marginLeft: isInHand ? '-30px' : '0', // Overlap cards in hand
+        marginLeft: isInHand ? '-50px' : '0', // Increased overlap for unselected cards
         zIndex: isHovered ? 10 : index, // Bring hovered card to front
         transition: 'all 0.2s ease',
-        transform: isHovered ? 'translateY(-20px) scale(1.1)' : 'none',
+        transform: isHovered ? 'translateY(-20px) translateX(25px) scale(1.1)' : 'none',
         cursor: isInHand ? 'pointer' : 'default'
       }}
     >
@@ -59,13 +59,21 @@ function GameView() {
 
   const handleLeaveGame = async () => {
     try {
-      // Send leave_room message through WebSocket
+      // Always navigate away first to ensure responsive UI
+      navigate('/');
+      
+      // Then attempt cleanup
       if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'leave_room' }));
+        ws.send(JSON.stringify({ 
+          type: 'leave_room',
+          player_id: playerId,
+          room_code: roomCode
+        }));
+        ws.close();
       }
       
       // Call leave room API endpoint
-      const response = await fetch(`${BASE_URL}/rooms/${roomCode}/leave`, {
+      await fetch(`${BASE_URL}/rooms/${roomCode}/leave`, {
         method: 'POST',
         credentials: 'include',
         headers: { 
@@ -73,17 +81,10 @@ function GameView() {
           'Origin': window.location.origin
         },
         body: JSON.stringify({ username })
-      });
+      }).catch(err => console.error('Error calling leave API:', err));
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to leave room');
-      }
     } catch (err) {
-      console.error('Error leaving room:', err);
-    } finally {
-      // Navigate away regardless of API call result
-      navigate('/');
+      console.error('Error during leave cleanup:', err);
     }
   };
 
@@ -115,6 +116,20 @@ function GameView() {
           console.log('Processing game state update:', data);
           const newState = data.type === 'game_state' ? data.state : data.game_state || {};
           
+          // Handle player departure
+          if (data.type === 'game_update' && data.event === 'player_left') {
+            const departedPlayer = data.player;
+            setError(`${departedPlayer.name} has left the game.`);
+            
+            // If game can't continue, end it
+            if (data.game_ended) {
+              setTimeout(() => {
+                setError('Game ended due to player departure.');
+                navigate('/');
+              }, 3000);
+            }
+          }
+          
           // Ensure we have a valid players object
           if (!newState.players) {
             newState.players = {};
@@ -125,9 +140,6 @@ function GameView() {
             const strId = String(id);
             if (newState.players[strId]) {
               const playerData = newState.players[strId];
-              
-              // Keep the hand data as is from the server
-              // The server will only send the hand for the current player
               newState.players[strId] = {
                 ...playerData,
                 id: strId,
@@ -137,9 +149,7 @@ function GameView() {
             }
           });
           
-          console.log('Processed game state:', newState);
           setGameState(newState);
-          setError('');
           
           if (data.type === 'game_update' && data.result && !data.result.success) {
             setError(data.result.message || 'Action failed');
@@ -250,6 +260,7 @@ function GameView() {
   const renderPlayerHand = (player, position) => {
     const isCurrentPlayer = player.id === playerId;
     const hand = player.hand || [];
+    const handToRender = isCurrentPlayer ? hand : hand.map(() => ({ show_back: true }));
     
     return (
       <div style={{
@@ -260,7 +271,7 @@ function GameView() {
         padding: '10px',
         minWidth: '200px',
         maxWidth: '400px',
-        overflow: 'visible', // Allow cards to hover outside
+        overflow: 'visible',
         zIndex: 1
       }}>
         <div style={{
@@ -272,15 +283,16 @@ function GameView() {
           <div style={{
             display: 'flex',
             justifyContent: 'center',
-            paddingLeft: '30px', // Offset for card overlap
+            paddingLeft: '50px', // Increased padding for more overlap
           }}>
-            {hand.map((card, index) => renderCard(card, index, isCurrentPlayer))}
+            {handToRender.map((card, index) => renderCard(card, index, isCurrentPlayer))}
           </div>
           <div style={{
             textAlign: 'center',
             color: 'white',
             marginTop: '10px',
-            fontSize: '0.9em'
+            fontSize: '0.9em',
+            textShadow: '1px 1px 2px rgba(0,0,0,0.5)' // Added text shadow for better visibility
           }}>
             {player.name} {isCurrentPlayer ? '(You)' : ''}
             {player.is_host && ' (Host)'}
@@ -290,7 +302,7 @@ function GameView() {
     );
   };
 
-  const calculatePlayerPosition = (index, totalPlayers, radius = 250) => {
+  const calculatePlayerPosition = (index, totalPlayers, radius = 300) => { // Increased radius
     const playerIds = Object.keys(gameState.players);
     const myIndex = playerIds.indexOf(playerId);
     const isCurrentPlayer = playerIds[index] === playerId;
@@ -299,27 +311,26 @@ function GameView() {
     if (isCurrentPlayer) {
       return {
         left: '50%',
-        bottom: '20px', // Fixed position at bottom
+        bottom: '20px',
         transform: 'translateX(-50%)',
         position: 'absolute'
       };
     }
     
     // For other players, distribute them in a semicircle at the top
-    // Adjust the number of positions to account for the current player being at bottom
     const remainingPlayers = totalPlayers - 1;
     const currentIndex = index > myIndex ? index - 1 : index;
     
     // Calculate angle for this player, using a 180-degree arc
     const startAngle = 180; // Start from left side
-    const angleStep = 180 / (remainingPlayers + 1); // +1 to create gaps at the edges
+    const angleStep = 180 / (remainingPlayers + 1);
     const angle = startAngle - (angleStep * (currentIndex + 1));
     
     // Convert to radians and calculate position
     const rad = (angle * Math.PI) / 180;
     return {
       left: `calc(50% + ${Math.cos(rad) * radius}px)`,
-      top: `calc(20% + ${-Math.sin(rad) * (radius * 0.8)}px)`, // Reduced vertical radius
+      top: `calc(15% + ${-Math.sin(rad) * (radius * 0.6)}px)`, // Adjusted vertical positioning
       transform: 'translate(-50%, -50%)',
       position: 'absolute'
     };
@@ -1240,10 +1251,12 @@ function GameView() {
   return (
     <div className="game-view" style={{
       position: 'relative',
-      width: '100vw',
+      width: '100%',
       height: '100vh',
       backgroundColor: '#2c5530', // Poker table green
-      overflow: 'hidden'
+      overflow: 'hidden',
+      display: 'flex',
+      flexDirection: 'column'
     }}>
       {error && (
         <div className="error-message" style={{
@@ -1281,7 +1294,7 @@ function GameView() {
         onClick={handleLeaveGame}
         className="leave-game"
         style={{
-          position: 'absolute',
+          position: 'fixed', // Changed to fixed to ensure it stays visible
           top: '20px',
           left: '20px',
           padding: '10px 20px',
@@ -1289,7 +1302,9 @@ function GameView() {
           color: 'white',
           border: 'none',
           borderRadius: '5px',
-          cursor: 'pointer'
+          cursor: 'pointer',
+          zIndex: 1000, // Ensure it's always on top
+          boxShadow: '0 2px 4px rgba(0,0,0,0.2)' // Added shadow for better visibility
         }}
       >
         Leave Game
