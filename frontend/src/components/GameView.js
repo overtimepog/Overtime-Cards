@@ -1260,12 +1260,13 @@ function GameView() {
   };
 
   return (
-    <div style={{ 
-      backgroundColor: '#90EE90',
+    <div className="game-view" style={{
+      position: 'relative',
       width: '100%',
-      position: 'fixed',
-      top: 0,
-      left: 0
+      backgroundColor: '#2c5530', // Poker table green
+      overflow: 'hidden',
+      display: 'flex',
+      flexDirection: 'column',
     }}>
       {error && (
         <div className="error-message" style={{
