@@ -790,7 +790,7 @@ def create_room(request: Request, room: RoomCreate):
             conn.execute(
                 """
                 UPDATE players 
-                SET room_code = ?, status = 'not ready'
+                SET room_code = ?
                 WHERE id = ?
                 """,
                 (room_code, room.player_id)
@@ -927,7 +927,7 @@ def leave_room(request: Request, room_code: str, player: PlayerCreate):
             conn.execute(
                 """
                 UPDATE players
-                SET room_code = NULL, status = 'not ready'
+                SET room_code = NULL
                 WHERE id = ?
                 """,
                 (player_id,)
@@ -952,7 +952,7 @@ async def start_game(request: Request, game: GameStart):
                 """
                 SELECT COUNT(*) as player_count
                 FROM players
-                WHERE room_code = ? AND status = 'active'
+                WHERE room_code = ?
                 """,
                 (game.room_code,)
             )
@@ -973,9 +973,9 @@ async def start_game(request: Request, game: GameStart):
             # Get all players in room
             cursor = conn.execute(
                 """
-                SELECT id, username, status
+                SELECT id, username
                 FROM players
-                WHERE room_code = ? AND status = 'active'
+                WHERE room_code = ?
                 """,
                 (game.room_code,)
             )
