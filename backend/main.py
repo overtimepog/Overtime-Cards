@@ -10,7 +10,7 @@ from base64 import b64encode, b64decode
 from functools import wraps
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from cachetools import TTLCache
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 import random
 import string
 from fastapi import FastAPI, WebSocket, HTTPException, WebSocketDisconnect, Request
@@ -265,8 +265,8 @@ async def cleanup_inactive_rooms():
     with get_db() as conn:
         try:
             # More aggressive cleanup for empty rooms
-            empty_room_cutoff = (datetime.utcnow() - timedelta(minutes=30)).isoformat()
-            inactive_room_cutoff = (datetime.utcnow() - timedelta(hours=2)).isoformat()
+            empty_room_cutoff = (datetime.now(UTC) - timedelta(minutes=30)).isoformat()
+            inactive_room_cutoff = (datetime.now(UTC) - timedelta(hours=2)).isoformat()
             
             # Get inactive room codes
             cursor = conn.execute(
@@ -332,8 +332,8 @@ async def cleanup_inactive_players():
     with get_db() as conn:
         try:
             # Different cutoffs for players in rooms vs not in rooms
-            in_room_cutoff = (datetime.utcnow() - timedelta(minutes=2)).isoformat()
-            no_room_cutoff = (datetime.utcnow() - timedelta(minutes=1)).isoformat()
+            in_room_cutoff = (datetime.now(UTC) - timedelta(minutes=2)).isoformat()
+            no_room_cutoff = (datetime.now(UTC) - timedelta(minutes=1)).isoformat()
             
             # Remove room_code from inactive players
             conn.execute(
@@ -349,7 +349,7 @@ async def cleanup_inactive_players():
             )
             
             # Then delete players that have been inactive for even longer
-            delete_cutoff = (datetime.utcnow() - timedelta(hours=24)).isoformat()
+            delete_cutoff = (datetime.now(UTC) - timedelta(hours=24)).isoformat()
             cursor = conn.execute(
                 """
                 SELECT id FROM players 
@@ -392,7 +392,7 @@ async def startup_event():
         with get_db() as conn:
             try:
                 # Pre-warm caches with active rooms and players
-                active_cutoff = (datetime.utcnow() - timedelta(hours=1)).isoformat()
+                active_cutoff = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
                 cursor = conn.execute(
                     "SELECT * FROM rooms WHERE last_activity > ?",
                     (active_cutoff,)
@@ -483,7 +483,7 @@ async def health_check():
     finally:
         response = {
             "status": "healthy" if db_status == "connected" else "unhealthy",
-            "timestamp": datetime.utcnow(),
+            "timestamp": datetime.now(UTC),
             "database": {
                 "status": db_status,
                 "path": settings.DATABASE_URL
@@ -517,7 +517,7 @@ class ConnectionManager:
                 JOIN rooms r ON r.code = p.room_code
                 WHERE p.id = ? AND p.room_code = ?
                 """,
-                ((datetime.utcnow() - timedelta(minutes=2)).isoformat(), player_id, room_code)
+                ((datetime.now(UTC) - timedelta(minutes=2)).isoformat(), player_id, room_code)
             )
             player = cursor.fetchone()
             
@@ -534,7 +534,7 @@ class ConnectionManager:
                     SET last_activity = ? 
                     WHERE id = ? AND room_code = ?
                     """,
-                    (datetime.utcnow().isoformat(), player_id, room_code)
+                    (datetime.now(UTC).isoformat(), player_id, room_code)
                 )
 
                 # Add system message about player joining
@@ -549,7 +549,7 @@ class ConnectionManager:
                     "username": "System",
                     "message": f"{username} joined the room",
                     "isSystem": True,
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(UTC).isoformat()
                 }
                 
                 # Update room activity
@@ -559,7 +559,7 @@ class ConnectionManager:
                     SET last_activity = ? 
                     WHERE code = ?
                     """,
-                    (datetime.utcnow().isoformat(), room_code)
+                    (datetime.now(UTC).isoformat(), room_code)
                 )
                 conn.commit()
                 
@@ -618,7 +618,7 @@ class ConnectionManager:
                                         ORDER BY last_activity DESC
                                         LIMIT 1
                                         """,
-                                        (room_code, player_id, (datetime.utcnow() - timedelta(minutes=2)).isoformat())
+                                        (room_code, player_id, (datetime.now(UTC) - timedelta(minutes=2)).isoformat())
                                     )
                                     new_host = cursor.fetchone()
                                     
@@ -635,7 +635,7 @@ class ConnectionManager:
                                             "username": "System",
                                             "message": f"{new_host['username']} is now the host",
                                             "isSystem": True,
-                                            "timestamp": datetime.utcnow().isoformat(),
+                                            "timestamp": datetime.now(UTC).isoformat(),
                                             "new_host_id": new_host['id'],
                                             "new_host_name": new_host['username']
                                         }
@@ -679,7 +679,7 @@ class ConnectionManager:
                             chat_history.append(message)
                             
                             # Keep only last 100 messages and messages from last 24 hours
-                            cutoff_time = (datetime.utcnow() - timedelta(hours=24)).isoformat()
+                            cutoff_time = (datetime.now(UTC) - timedelta(hours=24)).isoformat()
                             chat_history = [
                                 msg for msg in chat_history 
                                 if msg.get('timestamp', '') >= cutoff_time
@@ -744,7 +744,7 @@ manager = ConnectionManager()
 def create_player(request: Request, player: PlayerCreate):
     with get_db() as conn:
         try:
-            now = datetime.utcnow().isoformat()
+            now = datetime.now(UTC).isoformat()
             cursor = conn.execute(
                 """
                 INSERT INTO players (username, last_activity) 
@@ -783,7 +783,7 @@ def create_room(request: Request, room: RoomCreate):
             # Create room and update host's room_code
             conn.execute(
                 "INSERT INTO rooms (code, host_id, last_activity) VALUES (?, ?, ?)",
-                (room_code, room.player_id, datetime.utcnow().isoformat())
+                (room_code, room.player_id, datetime.now(UTC).isoformat())
             )
             
             # Update host's room_code
@@ -811,7 +811,7 @@ def create_room(request: Request, room: RoomCreate):
 async def join_room(request: Request, room_code: str, player: PlayerCreate):
     with get_db() as conn:
         try:
-            now = datetime.utcnow().isoformat()
+            now = datetime.now(UTC).isoformat()
             
             # First check if the room exists
             cursor = conn.execute(
@@ -830,7 +830,7 @@ async def join_room(request: Request, room_code: str, player: PlayerCreate):
                 AND room_code = ? 
                 AND last_activity > ?
                 """,
-                (player.username, room_code, (datetime.utcnow() - timedelta(minutes=2)).isoformat())
+                (player.username, room_code, (datetime.now(UTC) - timedelta(minutes=2)).isoformat())
             )
             if cursor.fetchone()['count'] > 0:
                 raise HTTPException(status_code=400, detail="Username already taken in this room")
@@ -1012,7 +1012,7 @@ async def start_game(request: Request, game: GameStart):
                 SET game_state = ?, last_activity = ?
                 WHERE code = ?
                 """,
-                (game_state_id, datetime.utcnow().isoformat(), game.room_code)
+                (game_state_id, datetime.now(UTC).isoformat(), game.room_code)
             )
             
             conn.commit()
@@ -1076,7 +1076,7 @@ async def end_game(request: Request, game_end: GameEnd):
                 SET game_state = NULL, last_activity = ?
                 WHERE code = ?
                 """,
-                (datetime.utcnow().isoformat(), game_end.room_code)
+                (datetime.now(UTC).isoformat(), game_end.room_code)
             )
             
             conn.commit()
@@ -1130,7 +1130,7 @@ def get_leaderboard(request: Request, room_code: str):
 async def game_action(request: Request, action: GameAction):
     with get_db() as conn:
         try:
-            now = datetime.utcnow().isoformat()
+            now = datetime.now(UTC).isoformat()
             # Update activity timestamps at start of action
             conn.execute(
                 """
@@ -1595,7 +1595,7 @@ async def game_action(request: Request, action: GameAction):
                 SET last_activity = ?
                 WHERE code = ?
                 """,
-                (datetime.utcnow().isoformat(), action.room_code)
+                (datetime.now(UTC).isoformat(), action.room_code)
             )
             
             conn.commit()
@@ -1709,7 +1709,7 @@ async def process_websocket_message(websocket: WebSocket, data: dict, room_code:
                         WHERE r.code = ?
                         LIMIT 1
                         """,
-                        ((datetime.utcnow() - timedelta(minutes=2)).isoformat(), room_code)
+                        ((datetime.now(UTC) - timedelta(minutes=2)).isoformat(), room_code)
                     )
                     result = cursor.fetchone()
 
@@ -1722,7 +1722,7 @@ async def process_websocket_message(websocket: WebSocket, data: dict, room_code:
                             WHERE room_code = ? AND last_activity > ?
                             ORDER BY id
                             """,
-                            ((datetime.utcnow() - timedelta(seconds=30)).isoformat(), room_code, (datetime.utcnow() - timedelta(minutes=2)).isoformat())
+                            ((datetime.now(UTC) - timedelta(seconds=30)).isoformat(), room_code, (datetime.now(UTC) - timedelta(minutes=2)).isoformat())
                         )
                         players = cursor.fetchall()
                         
@@ -1760,7 +1760,7 @@ async def process_websocket_message(websocket: WebSocket, data: dict, room_code:
 
         elif message_type == 'chat':
             # Rate limit: 1 message per second, 30 messages per minute
-            current_time = datetime.utcnow()
+            current_time = datetime.now(UTC)
             cache_key = f"chat_rate_limit:{room_code}:{player_id}"
             last_message_time = request_cache.get(cache_key)
             
@@ -1817,7 +1817,7 @@ async def process_websocket_message(websocket: WebSocket, data: dict, room_code:
                             ORDER BY last_activity DESC
                             LIMIT 1
                             """,
-                            (room_code, player_id, (datetime.utcnow() - timedelta(minutes=2)).isoformat())
+                            (room_code, player_id, (datetime.now(UTC) - timedelta(minutes=2)).isoformat())
                         )
                         new_host = cursor.fetchone()
                         
@@ -1834,7 +1834,7 @@ async def process_websocket_message(websocket: WebSocket, data: dict, room_code:
                                 "username": "System",
                                 "message": f"{new_host['username']} is now the host",
                                 "isSystem": True,
-                                "timestamp": datetime.utcnow().isoformat(),
+                                "timestamp": datetime.now(UTC).isoformat(),
                                 "new_host_id": new_host['id'],
                                 "new_host_name": new_host['username']
                             }
