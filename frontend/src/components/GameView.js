@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
+import backDark from '../components/cards/back_dark.png';
 
 // Card component for proper hover state handling
 const Card = React.memo(({ card, index, isInHand }) => {
@@ -9,8 +10,8 @@ const Card = React.memo(({ card, index, isInHand }) => {
   
   // Generate the proper image path based on card rank and suit
   const imagePath = card.show_back ? 
-    './cards/back_dark.png' : 
-    `./cards/${card.suit.toLowerCase()}_${card.rank}.png`;
+    backDark : 
+    require(`../components/cards/${card.suit.toLowerCase()}_${card.rank}.png`);
   return (
     <div
       className="card-container"
