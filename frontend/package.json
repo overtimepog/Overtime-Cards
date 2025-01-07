@@ -15,7 +15,10 @@
     "react-router-dom": "^6.21.1",
     "react-scripts": "5.0.1",
     "web-vitals": "^2.1.4",
-    "websocket": "^1.0.34"
+    "websocket": "^1.0.34",
+    "react-dnd": "^15.1.0",
+    "react-dnd-html5-backend": "^15.1.0",
+    "react-beautiful-dnd": "^13.1.1"
   },
   "scripts": {
     "start": "react-scripts start",
