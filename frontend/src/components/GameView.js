@@ -1,10 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
+import { DndProvider, useDrag, useDrop } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
 import backDark from '../components/cards/back_dark.png';
 
-// Card component for proper hover state handling
-const Card = React.memo(({ card, index, isInHand }) => {
+// Custom hook for drop zones
+const useDropZone = (type, onDrop, playerId = null) => {
+  const [{ isOver }, drop] = useDrop(() => ({
+    accept: 'CARD',
+    drop: (item) => onDrop && onDrop(item, { pileType: type, playerId }),
+    collect: (monitor) => ({
+      isOver: monitor.isOver(),
+    }),
+  }));
+
+  return { isOver, drop };
+};
+
+// Card component with drag and drop functionality
+const Card = React.memo(({ card, index, isInHand, onDrop, canDrag = true }) => {
   const [isHovered, setIsHovered] = useState(false);
+  
+  const [{ isDragging }, drag] = useDrag(() => ({
+    type: 'CARD',
+    item: { card, index },
+    canDrag: canDrag && !card.show_back,
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging(),
+    }),
+  }));
+
+  const [{ isOver }, drop] = useDrop(() => ({
+    accept: 'CARD',
+    drop: (item) => onDrop && onDrop(item, { card, index }),
+    collect: (monitor) => ({
+      isOver: monitor.isOver(),
+    }),
+  }));
   
   if (!card) return null;
   
@@ -12,19 +44,25 @@ const Card = React.memo(({ card, index, isInHand }) => {
   const imagePath = card.show_back ? 
     backDark : 
     require(`../components/cards/${card.suit.toLowerCase()}_${card.rank}.png`);
+
   return (
     <div
+      ref={(node) => {
+        drag(drop(node));
+      }}
       className="card-container"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       style={{
         position: 'relative',
         display: 'inline-block',
-        marginLeft: isInHand ? '-50px' : '0', // Increased overlap for unselected cards
-        zIndex: isHovered ? 100 : index, // Much higher z-index when hovered
-        transition: 'all 0.2s ease, z-index 0s', // Prevent z-index from transitioning
+        marginLeft: isInHand ? '-50px' : '0',
+        zIndex: isHovered ? 100 : index,
+        transition: 'all 0.2s ease, z-index 0s',
         transform: isHovered ? 'translateY(-20px) translateX(25px) scale(1.1)' : 'none',
-        cursor: isInHand ? 'pointer' : 'default'
+        cursor: (canDrag && !card.show_back) ? 'grab' : 'default',
+        opacity: isDragging ? 0.5 : 1,
+        border: isOver ? '2px solid gold' : '2px solid transparent'
       }}
     >
       <img 
@@ -35,8 +73,7 @@ const Card = React.memo(({ card, index, isInHand }) => {
           width: '80px',
           height: 'auto',
           borderRadius: '8px',
-          boxShadow: isHovered ? '0 8px 16px rgba(0,0,0,0.3)' : '0 2px 4px rgba(0,0,0,0.1)', // Enhanced shadow on hover
-          border: '2px solid transparent',
+          boxShadow: isHovered ? '0 8px 16px rgba(0,0,0,0.3)' : '0 2px 4px rgba(0,0,0,0.1)',
           transition: 'all 0.2s ease'
         }}
       />
@@ -54,6 +91,7 @@ function GameView() {
   const [selectedCards, setSelectedCards] = useState([]);
   const { username, gameType, isHost } = location.state || {};
   const [isCurrentPlayer, setIsCurrentPlayer] = useState(false);
+  const [showPlayerSelection, setShowPlayerSelection] = useState(false);
 
   const BASE_URL = process.env.REACT_APP_API_URL || "https://overtime-cards-api.onrender.com/api/v1";
 
@@ -243,18 +281,103 @@ function GameView() {
   const handleCardClick = (cardIndex) => {
     if (!gameState?.players?.[playerId]?.hand) return;
     
-    setSelectedCards(prev => {
-      const isSelected = prev.includes(cardIndex);
-      if (isSelected) {
-        return prev.filter(i => i !== cardIndex);
-      } else {
-        return [...prev, cardIndex];
-      }
-    });
+    if (gameType === 'go_fish') {
+      setSelectedCards([cardIndex]); // Only allow one card selected at a time for Go Fish
+    } else {
+      setSelectedCards(prev => {
+        const isSelected = prev.includes(cardIndex);
+        if (isSelected) {
+          return prev.filter(i => i !== cardIndex);
+        } else {
+          return [...prev, cardIndex];
+        }
+      });
+    }
   };
 
-  const renderCard = (card, index, isInHand = false) => {
-    return <Card card={card} index={index} isInHand={isInHand} />;
+  const handleCardDrop = (source, target) => {
+    if (!gameState?.players?.[playerId]?.hand) return;
+    
+    const sourceCard = source.card;
+    const sourceIndex = source.index;
+    const targetCard = target.card;
+    const targetIndex = target.index;
+
+    // Handle different game-specific drop actions
+    switch (gameType) {
+      case 'kings_corner':
+        // If dropping on a foundation or corner pile
+        if (target.pileType) {
+          handleGameAction('move_cards', {
+            card_indices: [sourceIndex],
+            target_pile: target.pileType,
+            target_index: target.pileIndex
+          });
+        }
+        break;
+
+      case 'rummy':
+        // If dropping on a meld
+        if (target.meldIndex !== undefined) {
+          handleGameAction('add_to_meld', {
+            card_index: sourceIndex,
+            meld_index: target.meldIndex
+          });
+        }
+        // If dropping on another card to create a new meld
+        else if (targetCard && !targetCard.show_back) {
+          handleGameAction('create_meld', {
+            card_indices: [sourceIndex, targetIndex]
+          });
+        }
+        break;
+
+      case 'scat':
+        // If dropping on discard pile
+        if (target.pileType === 'discard') {
+          handleGameAction('discard_card', {
+            card_index: sourceIndex
+          });
+        }
+        break;
+
+      case 'snap':
+        // If dropping on center pile
+        if (target.pileType === 'center') {
+          handleGameAction('play_card', {
+            card_index: sourceIndex
+          });
+        }
+        break;
+
+      case 'go_fish':
+        // If dropping on a player
+        if (target.playerId) {
+          handleGameAction('ask_for_cards', {
+            target_player_id: target.playerId,
+            rank: sourceCard.rank
+          });
+        }
+        break;
+
+      default:
+        // For games that use card selection
+        handleCardClick(sourceIndex);
+        break;
+    }
+  };
+
+  const renderCard = (card, index, isInHand = false, dropConfig = {}) => {
+    return (
+      <Card 
+        card={card} 
+        index={index} 
+        isInHand={isInHand}
+        onDrop={handleCardDrop}
+        canDrag={isCurrentPlayer && isInHand}
+        {...dropConfig}
+      />
+    );
   };
 
   const renderPlayerHand = (player, position) => {
@@ -356,19 +479,29 @@ function GameView() {
             justifyContent: 'center'
           }}>
             {/* Center pile */}
-            <div className="center-pile" style={{
-              position: 'relative',
-              width: '100px',
-              height: '140px'
-            }}>
+            <div 
+              className="center-pile" 
+              ref={getDropRef('center')}
+              style={{
+                position: 'relative',
+                width: '100px',
+                height: '140px',
+                backgroundColor: getIsOver('center') ? 'rgba(255,255,255,0.1)' : 'transparent',
+                borderRadius: '8px',
+                border: '2px dashed rgba(255,255,255,0.3)',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}
+            >
               {gameState.center_pile?.slice(-1).map((card, index) => (
                 <div key={index} style={{
                   position: 'absolute',
-                  left: '50%',
-                  top: '50%',
-                  transform: 'translate(-50%, -50%)'
+                  transform: `rotate(${Math.random() * 10 - 5}deg)`
                 }}>
-                  {renderCard(card)}
+                  {renderCard(card, index, false, {
+                    pileType: 'center'
+                  })}
                 </div>
               ))}
             </div>
@@ -383,6 +516,29 @@ function GameView() {
                 <div>{gameState.players[gameState.last_action.player]?.name}'s turn</div>
               )}
             </div>
+
+            {/* Snap button */}
+            <button 
+              onClick={() => handleGameAction('snap')}
+              className="button snap-button"
+              style={{
+                backgroundColor: '#f44336',
+                color: 'white',
+                border: 'none',
+                padding: '10px 20px',
+                borderRadius: '5px',
+                fontWeight: 'bold',
+                fontSize: '1.2em',
+                cursor: 'pointer',
+                transition: 'transform 0.1s',
+                transform: 'scale(1)',
+                ':active': {
+                  transform: 'scale(0.95)'
+                }
+              }}
+            >
+              SNAP!
+            </button>
           </div>
         );
 
@@ -529,16 +685,24 @@ function GameView() {
                         position: 'absolute',
                         transform: `translateY(${cardIndex * 2}px)`
                       }}>
-                        {renderCard(card)}
+                        {renderCard(card, cardIndex, false, {
+                          pileType: `foundation_${index}`,
+                          pileIndex: index
+                        })}
                       </div>
                     ))
                   ) : (
-                    <div className="empty-pile" style={{
-                      width: '80px',
-                      height: '120px',
-                      border: '2px dashed rgba(255,255,255,0.3)',
-                      borderRadius: '8px'
-                    }} />
+                    <div 
+                      className="empty-pile" 
+                      ref={getDropRef('foundation')}
+                      style={{
+                        width: '80px',
+                        height: '120px',
+                        border: '2px dashed rgba(255,255,255,0.3)',
+                        borderRadius: '8px',
+                        backgroundColor: getIsOver('foundation') ? 'rgba(255,255,255,0.1)' : 'transparent'
+                      }}
+                    />
                   )}
                 </div>
               );
@@ -562,16 +726,24 @@ function GameView() {
                         position: 'absolute',
                         transform: `translateY(${cardIndex * 2}px)`
                       }}>
-                        {renderCard(card)}
+                        {renderCard(card, cardIndex, false, {
+                          pileType: `corner_${index}`,
+                          pileIndex: index
+                        })}
                       </div>
                     ))
                   ) : (
-                    <div className="empty-pile" style={{
-                      width: '80px',
-                      height: '120px',
-                      border: '2px dashed rgba(255,255,255,0.3)',
-                      borderRadius: '8px'
-                    }} />
+                    <div 
+                      className="empty-pile"
+                      ref={getDropRef('corner')}
+                      style={{
+                        width: '80px',
+                        height: '120px',
+                        border: '2px dashed rgba(255,255,255,0.3)',
+                        borderRadius: '8px',
+                        backgroundColor: getIsOver('corner') ? 'rgba(255,255,255,0.1)' : 'transparent'
+                      }}
+                    />
                   )}
                 </div>
               );
@@ -588,6 +760,8 @@ function GameView() {
               {gameState.deck?.cards_remaining > 0 && renderCard({
                 show_back: true,
                 image_back: '/public/cards/back_dark.png'
+              }, 0, false, {
+                canDrag: false
               })}
             </div>
           </div>
@@ -644,6 +818,8 @@ function GameView() {
                 {gameState.deck?.cards_remaining > 0 && renderCard({
                   show_back: true,
                   image_back: '/public/cards/back_dark.png'
+                }, 0, false, {
+                  canDrag: false
                 })}
                 <div style={{
                   position: 'absolute',
@@ -661,17 +837,22 @@ function GameView() {
               {/* Discard pile */}
               <div 
                 className="discard-pile"
-                onClick={() => isCurrentPlayer && handleGameAction('draw_card', { source: 'discard' })}
+                ref={getDropRef('discard')}
                 style={{
                   position: 'relative',
                   cursor: isCurrentPlayer ? 'pointer' : 'default',
                   transition: 'transform 0.2s',
                   transform: isCurrentPlayer ? 'scale(1.05)' : 'scale(1)',
+                  backgroundColor: getIsOver('discard') ? 'rgba(255,255,255,0.1)' : 'transparent',
+                  borderRadius: '8px',
+                  padding: '4px'
                 }}
               >
                 {gameState.discard_pile?.slice(-1).map((card, index) => (
                   <div key={index}>
-                    {renderCard(card)}
+                    {renderCard(card, index, false, {
+                      pileType: 'discard'
+                    })}
                   </div>
                 ))}
                 <div style={{
@@ -738,11 +919,28 @@ function GameView() {
                       transform: 'translateX(-30px)',
                       marginLeft: cardIndex === 0 ? '0' : '-30px'
                     }}>
-                      {renderCard(card)}
+                      {renderCard(card, cardIndex, false, {
+                        meldIndex,
+                        cardIndex
+                      })}
                     </div>
                   ))}
                 </div>
               ))}
+              {/* Empty meld drop zone */}
+              {isCurrentPlayer && (
+                <div 
+                  className="empty-meld"
+                  ref={getDropRef('meld')}
+                  style={{
+                    width: '120px',
+                    height: '150px',
+                    border: '2px dashed rgba(255,255,255,0.3)',
+                    borderRadius: '10px',
+                    backgroundColor: getIsOver('meld') ? 'rgba(255,255,255,0.1)' : 'transparent'
+                  }}
+                />
+              )}
             </div>
 
             {/* Draw and Discard piles */}
@@ -763,6 +961,8 @@ function GameView() {
                 {gameState.deck?.cards_remaining > 0 && renderCard({
                   show_back: true,
                   image_back: '/public/cards/back_dark.png'
+                }, 0, false, {
+                  canDrag: false
                 })}
                 <div style={{
                   position: 'absolute',
@@ -779,15 +979,20 @@ function GameView() {
               {/* Discard pile */}
               <div 
                 className="discard-pile"
-                onClick={() => isCurrentPlayer && handleGameAction('draw_card', { source: 'discard' })}
+                ref={getDropRef('discard')}
                 style={{
                   position: 'relative',
-                  cursor: isCurrentPlayer ? 'pointer' : 'default'
+                  cursor: isCurrentPlayer ? 'pointer' : 'default',
+                  backgroundColor: getIsOver('discard') ? 'rgba(255,255,255,0.1)' : 'transparent',
+                  borderRadius: '8px',
+                  padding: '4px'
                 }}
               >
                 {gameState.discard_pile?.slice(-1).map((card, index) => (
                   <div key={index}>
-                    {renderCard(card)}
+                    {renderCard(card, index, false, {
+                      pileType: 'discard'
+                    })}
                   </div>
                 ))}
                 <div style={{
@@ -895,13 +1100,21 @@ function GameView() {
             justifyContent: 'center'
           }}>
             {/* Draw pile */}
-            <div className="draw-pile" style={{
-              position: 'relative',
-              cursor: isCurrentPlayer ? 'pointer' : 'default'
-            }}>
+            <div 
+              className="draw-pile" 
+              onClick={() => isCurrentPlayer && handleGameAction('draw_card')}
+              style={{
+                position: 'relative',
+                cursor: isCurrentPlayer ? 'pointer' : 'default',
+                transition: 'transform 0.2s',
+                transform: isCurrentPlayer ? 'scale(1.05)' : 'scale(1)'
+              }}
+            >
               {gameState.deck?.cards_remaining > 0 && renderCard({
                 show_back: true,
                 image_back: '/public/cards/back_dark.png'
+              }, 0, false, {
+                canDrag: false
               })}
               <div style={{
                 position: 'absolute',
@@ -922,10 +1135,117 @@ function GameView() {
                 textAlign: 'center',
                 padding: '10px',
                 backgroundColor: 'rgba(0,0,0,0.3)',
-                borderRadius: '5px'
+                borderRadius: '5px',
+                maxWidth: '80%'
               }}>
                 {gameState.players[gameState.last_action.player]?.name} asked for {gameState.last_action.rank}s
                 {gameState.last_action.success ? ' and got them!' : ' - Go Fish!'}
+              </div>
+            )}
+
+            {/* Ask button and player selection when a card is selected */}
+            {isCurrentPlayer && selectedCards.length === 1 && (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '10px'
+              }}>
+                <button
+                  onClick={() => {
+                    // Show player selection after clicking Ask
+                    setShowPlayerSelection(true);
+                  }}
+                  style={{
+                    backgroundColor: '#4CAF50',
+                    color: 'white',
+                    border: 'none',
+                    padding: '10px 20px',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                    fontSize: '1.1em',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  Ask for {gameState.players[playerId].hand[selectedCards[0]]?.rank}s
+                </button>
+              </div>
+            )}
+
+            {/* Player selection dialog */}
+            {showPlayerSelection && selectedCards.length === 1 && (
+              <div style={{
+                position: 'fixed',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                backgroundColor: 'rgba(0,0,0,0.9)',
+                padding: '20px',
+                borderRadius: '10px',
+                zIndex: 1000,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+                minWidth: '200px'
+              }}>
+                <div style={{
+                  color: 'white',
+                  textAlign: 'center',
+                  marginBottom: '10px',
+                  fontSize: '1.1em'
+                }}>
+                  Who do you want to ask?
+                </div>
+                {Object.entries(gameState.players || {})
+                  .filter(([id]) => id !== playerId)
+                  .map(([id, player]) => (
+                    <button
+                      key={id}
+                      onClick={() => {
+                        handleGameAction('ask_for_cards', {
+                          target_player_id: id,
+                          rank: gameState.players[playerId].hand[selectedCards[0]]?.rank
+                        });
+                        setSelectedCards([]);
+                        setShowPlayerSelection(false);
+                      }}
+                      style={{
+                        backgroundColor: 'rgba(255,255,255,0.1)',
+                        color: 'white',
+                        border: 'none',
+                        padding: '10px',
+                        borderRadius: '5px',
+                        cursor: 'pointer',
+                        width: '100%',
+                        textAlign: 'left',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}
+                    >
+                      <span>{player.name}</span>
+                      <span style={{ fontSize: '0.8em', opacity: 0.8 }}>
+                        ({player.hand_size} cards)
+                      </span>
+                    </button>
+                  ))}
+                <button
+                  onClick={() => {
+                    setSelectedCards([]);
+                    setShowPlayerSelection(false);
+                  }}
+                  style={{
+                    backgroundColor: '#dc3545',
+                    color: 'white',
+                    border: 'none',
+                    padding: '10px',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                    marginTop: '10px'
+                  }}
+                >
+                  Cancel
+                </button>
               </div>
             )}
 
@@ -939,7 +1259,10 @@ function GameView() {
               {Object.entries(gameState.books || {}).map(([playerId, books]) => (
                 <div key={playerId} style={{
                   color: 'white',
-                  textAlign: 'center'
+                  textAlign: 'center',
+                  padding: '5px 10px',
+                  backgroundColor: 'rgba(0,0,0,0.2)',
+                  borderRadius: '5px'
                 }}>
                   <div>{gameState.players[playerId]?.name}</div>
                   <div>Books: {books.length}</div>
@@ -1259,70 +1582,135 @@ function GameView() {
     }
   };
 
+  // Add drop zone hooks for each game type and Go Fish players
+  const { isOver: isOverFoundation, drop: dropFoundation } = useDropZone('foundation', handleCardDrop);
+  const { isOver: isOverCorner, drop: dropCorner } = useDropZone('corner', handleCardDrop);
+  const { isOver: isOverMeld, drop: dropMeld } = useDropZone('meld', handleCardDrop);
+  const { isOver: isOverDiscard, drop: dropDiscard } = useDropZone('discard', handleCardDrop);
+  const { isOver: isOverCenter, drop: dropCenter } = useDropZone('center', handleCardDrop);
+
+  // Create player-specific drop zones for Go Fish
+  const playerDropZones = {};
+  if (gameState?.players && gameType === 'go_fish') {
+    Object.keys(gameState.players).forEach(id => {
+      if (id !== playerId) {
+        const { isOver, drop } = useDropZone('player', handleCardDrop, id);
+        playerDropZones[id] = { isOver, drop };
+      }
+    });
+  }
+
+  // Update the ref assignments in the render functions
+  const getDropRef = (type) => {
+    if (type.startsWith('player_')) {
+      const playerId = type.split('_')[1];
+      return playerDropZones[playerId]?.drop;
+    }
+
+    switch (type) {
+      case 'foundation':
+        return dropFoundation;
+      case 'corner':
+        return dropCorner;
+      case 'meld':
+        return dropMeld;
+      case 'discard':
+        return dropDiscard;
+      case 'center':
+        return dropCenter;
+      default:
+        return null;
+    }
+  };
+
+  const getIsOver = (type) => {
+    if (type.startsWith('player_')) {
+      const playerId = type.split('_')[1];
+      return playerDropZones[playerId]?.isOver;
+    }
+
+    switch (type) {
+      case 'foundation':
+        return isOverFoundation;
+      case 'corner':
+        return isOverCorner;
+      case 'meld':
+        return isOverMeld;
+      case 'discard':
+        return isOverDiscard;
+      case 'center':
+        return isOverCenter;
+      default:
+        return false;
+    }
+  };
+
   return (
-    <div className="game-view" style={{
-      position: 'relative',
-      width: '100%',
-      backgroundColor: '#2c5530', // Poker table green
-      overflow: 'hidden',
-      display: 'flex',
-      flexDirection: 'column',
-      minHeight: '100vh',
-      height: '100%',
-      padding: '20px'
-    }}>
-      {error && (
-        <div className="error-message" style={{
-          position: 'absolute',
-          top: '20px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          backgroundColor: 'rgba(255,0,0,0.8)',
-          color: 'white',
-          padding: '10px 20px',
-          borderRadius: '5px',
-          zIndex: 100
-        }}>
-          {error}
-        </div>
-      )}
+    <DndProvider backend={HTML5Backend}>
+      <div className="game-view" style={{
+        position: 'relative',
+        width: '100%',
+        backgroundColor: '#2c5530', // Poker table green
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100vh',
+        height: '100%',
+        padding: '20px'
+      }}>
+        {error && (
+          <div className="error-message" style={{
+            position: 'absolute',
+            top: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            backgroundColor: 'rgba(255,0,0,0.8)',
+            color: 'white',
+            padding: '10px 20px',
+            borderRadius: '5px',
+            zIndex: 100
+          }}>
+            {error}
+          </div>
+        )}
 
-      {/* Game center area */}
-      {renderGameCenter()}
+        {/* Game center area */}
+        {renderGameCenter()}
 
-      {/* Players around the table */}
-      {gameState && Object.entries(gameState.players).map(([id, player], index) => {
-        const position = calculatePlayerPosition(
-          index,
-          Object.keys(gameState.players).length
-        );
-        return renderPlayerHand(
-          { ...player, id },
-          position
-        );
-      })}
+        {/* Players around the table */}
+        {gameState && Object.entries(gameState.players).map(([id, player], index) => {
+          const position = calculatePlayerPosition(
+            index,
+            Object.keys(gameState.players).length
+          );
+          return renderPlayerHand(
+            { ...player, id },
+            position
+          );
+        })}
 
-      {/* Leave Game button */}
-      <button
-        onClick={handleLeaveGame}
-        className="leave-game"
-        style={{
-          position: 'fixed', // Changed to fixed to ensure it stays visible
-          top: '20px',
-          left: '20px',
-          padding: '10px 20px',
-          backgroundColor: '#dc3545',
-          color: 'white',
-          border: 'none',
-          borderRadius: '5px',
-          cursor: 'pointer',
-          zIndex: 1000, // Ensure it's always on top
-          boxShadow: '0 2px 4px rgba(0,0,0,0.2)' // Added shadow for better visibility
-        }}
-      >
-        Leave Game
-      </button>
-    </div>
+        {/* Leave Game button */}
+        <button
+          onClick={handleLeaveGame}
+          className="leave-game"
+          style={{
+            position: 'fixed', // Changed to fixed to ensure it stays visible
+            top: '20px',
+            left: '20px',
+            padding: '10px 20px',
+            backgroundColor: '#dc3545',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer',
+            zIndex: 1000, // Ensure it's always on top
+            boxShadow: '0 2px 4px rgba(0,0,0,0.2)' // Added shadow for better visibility
+          }}
+        >
+          Leave Game
+        </button>
+      </div>
+    </DndProvider>
   );
 }
 
