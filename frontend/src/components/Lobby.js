@@ -250,7 +250,11 @@ function Lobby() {
     try {
       const response = await fetch(`${BASE_URL}/start-game/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Origin': window.location.origin
+        },
         body: JSON.stringify({
           room_code: roomCode,
           game_type: selectedGame
@@ -310,7 +314,11 @@ function Lobby() {
               // Call leave room API endpoint
               const response = await fetch(`${BASE_URL}/rooms/${roomCode}/leave`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                headers: { 
+                  'Content-Type': 'application/json',
+                  'Origin': window.location.origin
+                },
                 body: JSON.stringify({ username })
               });
               

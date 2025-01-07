@@ -20,7 +20,11 @@ function JoinRoom() {
       // Create player first
       const playerResponse = await fetch(`${BASE_URL}/players/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Origin': window.location.origin
+        },
         body: JSON.stringify({ username: username.trim() })
       });
 
@@ -35,7 +39,11 @@ function JoinRoom() {
       // Join the room
       const joinResponse = await fetch(`${BASE_URL}/rooms/${roomCode.trim()}/join`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Origin': window.location.origin
+        },
         body: JSON.stringify({ username: username.trim() })
       });
 

@@ -147,7 +147,8 @@ function GameView() {
         action_type: actionType,
         action_data: actionData,
         room_code: roomCode,
-        player_id: parseInt(playerId)
+        player_id: parseInt(playerId),
+        origin: window.location.origin
       }));
 
     } catch (err) {

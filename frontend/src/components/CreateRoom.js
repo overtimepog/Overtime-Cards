@@ -17,7 +17,13 @@ function CreateRoom() {
 
     try {
       // Debug API first
-      const debugResponse = await fetch(`${BASE_URL}/health`);
+      const debugResponse = await fetch(`${BASE_URL}/health`, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Origin': window.location.origin
+        }
+      });
       if (!debugResponse.ok) {
         const errorData = await debugResponse.json();
         throw new Error(errorData.detail || 'API health check failed');
@@ -27,7 +33,11 @@ function CreateRoom() {
       // Create player first
       const playerResponse = await fetch(`${BASE_URL}/players/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Origin': window.location.origin
+        },
         body: JSON.stringify({ username: username.trim() })
       });
 
