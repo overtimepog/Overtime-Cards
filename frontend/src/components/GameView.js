@@ -21,8 +21,8 @@ const Card = React.memo(({ card, index, isInHand }) => {
         position: 'relative',
         display: 'inline-block',
         marginLeft: isInHand ? '-50px' : '0', // Increased overlap for unselected cards
-        zIndex: isHovered ? 10 : index, // Bring hovered card to front
-        transition: 'all 0.2s ease',
+        zIndex: isHovered ? 100 : index, // Much higher z-index when hovered
+        transition: 'all 0.2s ease, z-index 0s', // Prevent z-index from transitioning
         transform: isHovered ? 'translateY(-20px) translateX(25px) scale(1.1)' : 'none',
         cursor: isInHand ? 'pointer' : 'default'
       }}
@@ -35,7 +35,7 @@ const Card = React.memo(({ card, index, isInHand }) => {
           width: '80px',
           height: 'auto',
           borderRadius: '8px',
-          boxShadow: isHovered ? '0 4px 8px rgba(0,0,0,0.2)' : '0 2px 4px rgba(0,0,0,0.1)',
+          boxShadow: isHovered ? '0 8px 16px rgba(0,0,0,0.3)' : '0 2px 4px rgba(0,0,0,0.1)', // Enhanced shadow on hover
           border: '2px solid transparent',
           transition: 'all 0.2s ease'
         }}
