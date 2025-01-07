@@ -17,6 +17,59 @@ const useDropZone = (type, onDrop, playerId = null) => {
   return { isOver, drop };
 };
 
+// Custom hook for managing all drop zones
+const useGameDropZones = (gameState, playerId, handleCardDrop) => {
+  // Standard game drop zones
+  const foundation = useDropZone('foundation', handleCardDrop);
+  const corner = useDropZone('corner', handleCardDrop);
+  const meld = useDropZone('meld', handleCardDrop);
+  const discard = useDropZone('discard', handleCardDrop);
+  const center = useDropZone('center', handleCardDrop);
+
+  // Player drop zones
+  const playerZones = {};
+  if (gameState?.players) {
+    Object.keys(gameState.players)
+      .filter(id => id !== playerId)
+      .forEach(id => {
+        playerZones[id] = useDropZone('player', handleCardDrop, id);
+      });
+  }
+
+  return {
+    foundation,
+    corner,
+    meld,
+    discard,
+    center,
+    players: playerZones,
+    getDropRef: (type, pid = null) => {
+      if (type === 'player' && pid) {
+        return playerZones[pid]?.drop;
+      }
+      return {
+        foundation: foundation.drop,
+        corner: corner.drop,
+        meld: meld.drop,
+        discard: discard.drop,
+        center: center.drop
+      }[type];
+    },
+    getIsOver: (type, pid = null) => {
+      if (type === 'player' && pid) {
+        return playerZones[pid]?.isOver;
+      }
+      return {
+        foundation: foundation.isOver,
+        corner: corner.isOver,
+        meld: meld.isOver,
+        discard: discard.isOver,
+        center: center.isOver
+      }[type];
+    }
+  };
+};
+
 // Card component with drag and drop functionality
 const Card = React.memo(({ card, index, isInHand, onDrop, canDrag = true }) => {
   const [isHovered, setIsHovered] = useState(false);
@@ -92,6 +145,9 @@ function GameView() {
   const { username, gameType, isHost } = location.state || {};
   const [isCurrentPlayer, setIsCurrentPlayer] = useState(false);
   const [showPlayerSelection, setShowPlayerSelection] = useState(false);
+
+  // Initialize drop zones using the custom hook
+  const dropZones = useGameDropZones(gameState, playerId, handleCardDrop);
 
   const BASE_URL = process.env.REACT_APP_API_URL || "https://overtime-cards-api.onrender.com/api/v1";
 
@@ -380,53 +436,13 @@ function GameView() {
     );
   };
 
-  // Create dynamic drop zones based on gameState
-  const generateDropZones = () => {
-    const zones = {
-      foundation: useDropZone('foundation', handleCardDrop),
-      corner: useDropZone('corner', handleCardDrop),
-      meld: useDropZone('meld', handleCardDrop),
-      discard: useDropZone('discard', handleCardDrop),
-      center: useDropZone('center', handleCardDrop),
-      players: {}
-    };
-
-    // Add player-specific drop zones
-    if (gameState?.players) {
-      Object.keys(gameState.players)
-        .filter(id => id !== playerId) // Don't create drop zone for current player
-        .forEach(id => {
-          zones.players[id] = useDropZone('player', handleCardDrop, id);
-        });
-    }
-
-    return zones;
-  };
-
-  const dropZones = generateDropZones();
-
-  // Helper functions to get drop refs and isOver states
-  const getDropRef = (type, playerId = null) => {
-    if (type === 'player' && playerId) {
-      return dropZones.players[playerId]?.drop;
-    }
-    return dropZones[type]?.drop;
-  };
-
-  const getIsOver = (type, playerId = null) => {
-    if (type === 'player' && playerId) {
-      return dropZones.players[playerId]?.isOver;
-    }
-    return dropZones[type]?.isOver;
-  };
-
   const renderPlayerHand = (player, position) => {
     const isCurrentPlayer = player.id === playerId;
     const hand = player.hand || [];
     const handToRender = isCurrentPlayer ? hand : hand.map(() => ({ show_back: true }));
     
-    const dropRef = !isCurrentPlayer ? getDropRef('player', player.id) : null;
-    const isDropOver = !isCurrentPlayer ? getIsOver('player', player.id) : false;
+    const dropRef = !isCurrentPlayer ? dropZones.getDropRef('player', player.id) : null;
+    const isDropOver = !isCurrentPlayer ? dropZones.getIsOver('player', player.id) : false;
     
     return (
       <div 
@@ -530,12 +546,12 @@ function GameView() {
             {/* Center pile */}
             <div 
               className="center-pile" 
-              ref={getDropRef('center')}
+              ref={dropZones.getDropRef('center')}
               style={{
                 position: 'relative',
                 width: '100px',
                 height: '140px',
-                backgroundColor: getIsOver('center') ? 'rgba(255,255,255,0.1)' : 'transparent',
+                backgroundColor: dropZones.getIsOver('center') ? 'rgba(255,255,255,0.1)' : 'transparent',
                 borderRadius: '8px',
                 border: '2px dashed rgba(255,255,255,0.3)',
                 display: 'flex',
@@ -743,13 +759,13 @@ function GameView() {
                   ) : (
                     <div 
                       className="empty-pile" 
-                      ref={getDropRef('foundation')}
+                      ref={dropZones.getDropRef('foundation')}
                       style={{
                         width: '80px',
                         height: '120px',
                         border: '2px dashed rgba(255,255,255,0.3)',
                         borderRadius: '8px',
-                        backgroundColor: getIsOver('foundation') ? 'rgba(255,255,255,0.1)' : 'transparent'
+                        backgroundColor: dropZones.getIsOver('foundation') ? 'rgba(255,255,255,0.1)' : 'transparent'
                       }}
                     />
                   )}
@@ -784,13 +800,13 @@ function GameView() {
                   ) : (
                     <div 
                       className="empty-pile"
-                      ref={getDropRef('corner')}
+                      ref={dropZones.getDropRef('corner')}
                       style={{
                         width: '80px',
                         height: '120px',
                         border: '2px dashed rgba(255,255,255,0.3)',
                         borderRadius: '8px',
-                        backgroundColor: getIsOver('corner') ? 'rgba(255,255,255,0.1)' : 'transparent'
+                        backgroundColor: dropZones.getIsOver('corner') ? 'rgba(255,255,255,0.1)' : 'transparent'
                       }}
                     />
                   )}
@@ -886,13 +902,13 @@ function GameView() {
               {/* Discard pile */}
               <div 
                 className="discard-pile"
-                ref={getDropRef('discard')}
+                ref={dropZones.getDropRef('discard')}
                 style={{
                   position: 'relative',
                   cursor: isCurrentPlayer ? 'pointer' : 'default',
                   transition: 'transform 0.2s',
                   transform: isCurrentPlayer ? 'scale(1.05)' : 'scale(1)',
-                  backgroundColor: getIsOver('discard') ? 'rgba(255,255,255,0.1)' : 'transparent',
+                  backgroundColor: dropZones.getIsOver('discard') ? 'rgba(255,255,255,0.1)' : 'transparent',
                   borderRadius: '8px',
                   padding: '4px'
                 }}
@@ -980,13 +996,13 @@ function GameView() {
               {isCurrentPlayer && (
                 <div 
                   className="empty-meld"
-                  ref={getDropRef('meld')}
+                  ref={dropZones.getDropRef('meld')}
                   style={{
                     width: '120px',
                     height: '150px',
                     border: '2px dashed rgba(255,255,255,0.3)',
                     borderRadius: '10px',
-                    backgroundColor: getIsOver('meld') ? 'rgba(255,255,255,0.1)' : 'transparent'
+                    backgroundColor: dropZones.getIsOver('meld') ? 'rgba(255,255,255,0.1)' : 'transparent'
                   }}
                 />
               )}
@@ -1028,11 +1044,11 @@ function GameView() {
               {/* Discard pile */}
               <div 
                 className="discard-pile"
-                ref={getDropRef('discard')}
+                ref={dropZones.getDropRef('discard')}
                 style={{
                   position: 'relative',
                   cursor: isCurrentPlayer ? 'pointer' : 'default',
-                  backgroundColor: getIsOver('discard') ? 'rgba(255,255,255,0.1)' : 'transparent',
+                  backgroundColor: dropZones.getIsOver('discard') ? 'rgba(255,255,255,0.1)' : 'transparent',
                   borderRadius: '8px',
                   padding: '4px'
                 }}
