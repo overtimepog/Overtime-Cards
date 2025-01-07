@@ -170,23 +170,88 @@ function GameView() {
     });
   };
 
-  const renderCard = (card) => {
+  const renderCard = (card, index, isInHand = false) => {
     if (!card) return null;
     
+    // Generate the proper image path based on card rank and suit
+    const imagePath = card.show_back ? 
+      '/assets/cards/back.png' : 
+      `/assets/cards/${card.suit.toLowerCase()}_${card.rank.toLowerCase()}.png`;
+    
+    const [isHovered, setIsHovered] = useState(false);
+    
     return (
-      <img 
-        src={card.show_back ? card.image_back : card.image_front}
-        alt={card.show_back ? "Card back" : `${card.rank} of ${card.suit}`}
-        className="card-image"
+      <div
+        className="card-container"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         style={{
-          width: card.show_back ? '60px' : '80px', // Smaller for backs
-          height: 'auto',
-          borderRadius: '8px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          border: '2px solid transparent',
-          transition: 'all 0.2s ease'
+          position: 'relative',
+          display: 'inline-block',
+          marginLeft: isInHand ? '-30px' : '0', // Overlap cards in hand
+          zIndex: isHovered ? 10 : index, // Bring hovered card to front
+          transition: 'all 0.2s ease',
+          transform: isHovered ? 'translateY(-20px) scale(1.1)' : 'none',
+          cursor: isInHand ? 'pointer' : 'default'
         }}
-      />
+      >
+        <img 
+          src={imagePath}
+          alt={card.show_back ? "Card back" : `${card.rank} of ${card.suit}`}
+          className="card-image"
+          style={{
+            width: '80px',
+            height: 'auto',
+            borderRadius: '8px',
+            boxShadow: isHovered ? '0 4px 8px rgba(0,0,0,0.2)' : '0 2px 4px rgba(0,0,0,0.1)',
+            border: '2px solid transparent',
+            transition: 'all 0.2s ease'
+          }}
+        />
+      </div>
+    );
+  };
+
+  const renderPlayerHand = (player, position) => {
+    const isCurrentPlayer = player.id === playerId;
+    const hand = player.hand || [];
+    
+    return (
+      <div style={{
+        ...position,
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: '10px',
+        minWidth: '200px',
+        maxWidth: '400px',
+        overflow: 'visible', // Allow cards to hover outside
+        zIndex: 1
+      }}>
+        <div style={{
+          backgroundColor: isCurrentPlayer ? 'rgba(255,255,255,0.1)' : 'transparent',
+          borderRadius: '10px',
+          padding: '10px',
+          position: 'relative'
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            paddingLeft: '30px', // Offset for card overlap
+          }}>
+            {hand.map((card, index) => renderCard(card, index, isCurrentPlayer))}
+          </div>
+          <div style={{
+            textAlign: 'center',
+            color: 'white',
+            marginTop: '10px',
+            fontSize: '0.9em'
+          }}>
+            {player.name} {isCurrentPlayer ? '(You)' : ''}
+            {player.is_host && ' (Host)'}
+          </div>
+        </div>
+      </div>
     );
   };
 
@@ -843,46 +908,21 @@ function GameView() {
   };
 
   return (
-    <div className="game-view" style={{ 
+    <div className="game-view" style={{
+      position: 'relative',
       width: '100vw',
       height: '100vh',
-      backgroundColor: '#2e7d32',
-      position: 'relative',
+      backgroundColor: '#2c5530', // Poker table green
       overflow: 'hidden'
     }}>
-      <div className="game-header" style={{ 
-        position: 'absolute',
-        top: '10px',
-        left: '10px',
-        zIndex: 10,
-        display: 'flex',
-        gap: '20px',
-        alignItems: 'center'
-      }}>
-        <h2 style={{ color: 'white', margin: 0 }}>{gameType.toUpperCase()}</h2>
-        <button 
-          onClick={() => navigate('/')} 
-          className="button back-button"
-          style={{
-            backgroundColor: 'rgba(255,255,255,0.2)',
-            color: 'white',
-            border: 'none',
-            padding: '5px 10px',
-            borderRadius: '5px'
-          }}
-        >
-          Leave Game
-        </button>
-      </div>
-
       {error && (
-        <div style={{ 
+        <div className="error-message" style={{
           position: 'absolute',
-          top: '50px',
+          top: '20px',
           left: '50%',
           transform: 'translateX(-50%)',
+          backgroundColor: 'rgba(255,0,0,0.8)',
           color: 'white',
-          backgroundColor: 'rgba(255,0,0,0.7)',
           padding: '10px 20px',
           borderRadius: '5px',
           zIndex: 100
@@ -891,79 +931,39 @@ function GameView() {
         </div>
       )}
 
-      {gameState && (
-        <div className="game-state" style={{ width: '100%', height: '100%', position: 'relative' }}>
-          {/* Center game elements */}
-          {renderGameCenter()}
+      {/* Game center area */}
+      {renderGameCenter()}
 
-          {/* Players in a circle */}
-          {Object.entries(gameState.players || {}).map(([id, player], index) => (
-            <div 
-              key={id}
-              style={{
-                ...calculatePlayerPosition(index, Object.keys(gameState.players).length),
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '10px'
-              }}
-            >
-              <div style={{ 
-                backgroundColor: id === gameState.current_player ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.5)',
-                padding: '10px 20px',
-                borderRadius: '10px',
-                color: 'white',
-                textAlign: 'center',
-                minWidth: '120px'
-              }}>
-                <div style={{ fontWeight: 'bold' }}>{player.name}</div>
-                <div style={{ fontSize: '0.8em' }}>{player.hand_size || 0} cards</div>
-                {gameType === 'spoons' && gameState.grabbed_spoons?.[id] && (
-                  <div style={{ color: '#FFD700', marginTop: '5px' }}>🥄 Has Spoon</div>
-                )}
-              </div>
+      {/* Players around the table */}
+      {gameState && Object.entries(gameState.players).map(([id, player], index) => {
+        const position = calculatePlayerPosition(
+          index,
+          Object.keys(gameState.players).length
+        );
+        return renderPlayerHand(
+          { ...player, id },
+          position
+        );
+      })}
 
-              {/* Show cards for all players */}
-              <div className="player-hand" style={{ 
-                display: 'flex', 
-                gap: '5px',
-                flexWrap: 'wrap',
-                justifyContent: 'center',
-                maxWidth: '300px'
-              }}>
-                {player.hand?.map((card, cardIndex) => (
-                  <div 
-                    key={cardIndex}
-                    onClick={() => id === playerId ? handleCardClick(cardIndex) : null}
-                    style={{
-                      transform: id === playerId && selectedCards.includes(cardIndex) ? 'translateY(-10px)' : 'none',
-                      transition: 'transform 0.2s ease',
-                      cursor: id === playerId ? 'pointer' : 'default'
-                    }}
-                  >
-                    {renderCard(card)}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-
-          {/* Game controls for current player */}
-          {gameState.current_player === playerId && (
-            <div style={{
-              position: 'absolute',
-              bottom: '20px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              display: 'flex',
-              gap: '10px',
-              justifyContent: 'center'
-            }}>
-              {renderGameControls()}
-            </div>
-          )}
-        </div>
-      )}
+      {/* Leave Game button */}
+      <button
+        onClick={handleLeaveGame}
+        className="leave-game"
+        style={{
+          position: 'absolute',
+          top: '20px',
+          left: '20px',
+          padding: '10px 20px',
+          backgroundColor: '#dc3545',
+          color: 'white',
+          border: 'none',
+          borderRadius: '5px',
+          cursor: 'pointer'
+        }}
+      >
+        Leave Game
+      </button>
     </div>
   );
 }
