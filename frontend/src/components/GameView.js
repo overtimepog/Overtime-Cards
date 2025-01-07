@@ -9,8 +9,8 @@ const Card = React.memo(({ card, index, isInHand }) => {
   
   // Generate the proper image path based on card rank and suit
   const imagePath = card.show_back ? 
-    '/frontend/src/cards/back_dark.png' : 
-    `/frontend/src/cards/${card.suit.toLowerCase()}_${card.rank}.png`;
+    'src/cards/back_dark.png' : 
+    `src/cards/${card.suit.toLowerCase()}_${card.rank}.png`;
   
   return (
     <div
