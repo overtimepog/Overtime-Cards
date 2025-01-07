@@ -302,7 +302,7 @@ function GameView() {
     );
   };
 
-  const calculatePlayerPosition = (index, totalPlayers, radius = 300) => { // Increased radius
+  const calculatePlayerPosition = (index, totalPlayers, radius = 250) => { // Reduced radius
     const playerIds = Object.keys(gameState.players);
     const myIndex = playerIds.indexOf(playerId);
     const isCurrentPlayer = playerIds[index] === playerId;
@@ -311,7 +311,7 @@ function GameView() {
     if (isCurrentPlayer) {
       return {
         left: '50%',
-        bottom: '20px',
+        bottom: '10px', // Reduced bottom margin
         transform: 'translateX(-50%)',
         position: 'absolute'
       };
@@ -330,7 +330,7 @@ function GameView() {
     const rad = (angle * Math.PI) / 180;
     return {
       left: `calc(50% + ${Math.cos(rad) * radius}px)`,
-      top: `calc(15% + ${-Math.sin(rad) * (radius * 0.6)}px)`, // Adjusted vertical positioning
+      top: `calc(10% + ${-Math.sin(rad) * (radius * 0.5)}px)`, // Adjusted vertical positioning
       transform: 'translate(-50%, -50%)',
       position: 'absolute'
     };
@@ -348,11 +348,12 @@ function GameView() {
             left: '50%',
             transform: 'translate(-50%, -50%)',
             width: '200px',
-            height: '200px',
+            maxHeight: '40vh',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '20px'
+            gap: '20px',
+            justifyContent: 'center'
           }}>
             {/* Center pile */}
             <div className="center-pile" style={{
@@ -393,11 +394,12 @@ function GameView() {
             left: '50%',
             transform: 'translate(-50%, -50%)',
             width: '300px',
-            height: '200px',
+            maxHeight: '40vh',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '20px'
+            gap: '20px',
+            justifyContent: 'center'
           }}>
             {/* Center pile */}
             <div className="center-pile" style={{
@@ -502,7 +504,12 @@ function GameView() {
             left: '50%',
             transform: 'translate(-50%, -50%)',
             width: '400px',
-            height: '400px'
+            maxHeight: '40vh',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '20px',
+            justifyContent: 'center'
           }}>
             {/* Foundation piles (center) */}
             {[...Array(4)].map((_, index) => {
@@ -594,11 +601,12 @@ function GameView() {
             left: '50%',
             transform: 'translate(-50%, -50%)',
             width: '400px',
-            height: '300px',
+            maxHeight: '40vh',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '20px'
+            gap: '20px',
+            justifyContent: 'center'
           }}>
             {/* Game info (current round, knocked status) */}
             <div className="game-info" style={{
@@ -702,11 +710,12 @@ function GameView() {
             left: '50%',
             transform: 'translate(-50%, -50%)',
             width: '600px',
-            height: '400px',
+            maxHeight: '40vh',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '20px'
+            gap: '20px',
+            justifyContent: 'center'
           }}>
             {/* Melds area */}
             <div className="melds-area" style={{
@@ -803,12 +812,13 @@ function GameView() {
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            width: '400px',
-            height: '300px',
+            width: '600px',
+            maxHeight: '40vh',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '20px'
+            gap: '20px',
+            justifyContent: 'center'
           }}>
             {/* Game info */}
             <div className="game-info" style={{
@@ -877,11 +887,12 @@ function GameView() {
             left: '50%',
             transform: 'translate(-50%, -50%)',
             width: '400px',
-            height: '300px',
+            maxHeight: '40vh',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '20px'
+            gap: '20px',
+            justifyContent: 'center'
           }}>
             {/* Draw pile */}
             <div className="draw-pile" style={{
@@ -1256,7 +1267,9 @@ function GameView() {
       backgroundColor: '#2c5530', // Poker table green
       overflow: 'hidden',
       display: 'flex',
-      flexDirection: 'column'
+      flexDirection: 'column',
+      maxHeight: '100vh',
+      minHeight: '100vh'
     }}>
       {error && (
         <div className="error-message" style={{
