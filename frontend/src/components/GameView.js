@@ -1,6 +1,49 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 
+// Card component for proper hover state handling
+const Card = React.memo(({ card, index, isInHand }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  
+  if (!card) return null;
+  
+  // Generate the proper image path based on card rank and suit
+  const imagePath = card.show_back ? 
+    '/assets/cards/back.png' : 
+    `/assets/cards/${card.suit.toLowerCase()}_${card.rank.toLowerCase()}.png`;
+  
+  return (
+    <div
+      className="card-container"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        position: 'relative',
+        display: 'inline-block',
+        marginLeft: isInHand ? '-30px' : '0', // Overlap cards in hand
+        zIndex: isHovered ? 10 : index, // Bring hovered card to front
+        transition: 'all 0.2s ease',
+        transform: isHovered ? 'translateY(-20px) scale(1.1)' : 'none',
+        cursor: isInHand ? 'pointer' : 'default'
+      }}
+    >
+      <img 
+        src={imagePath}
+        alt={card.show_back ? "Card back" : `${card.rank} of ${card.suit}`}
+        className="card-image"
+        style={{
+          width: '80px',
+          height: 'auto',
+          borderRadius: '8px',
+          boxShadow: isHovered ? '0 4px 8px rgba(0,0,0,0.2)' : '0 2px 4px rgba(0,0,0,0.1)',
+          border: '2px solid transparent',
+          transition: 'all 0.2s ease'
+        }}
+      />
+    </div>
+  );
+});
+
 function GameView() {
   const { roomCode, playerId } = useParams();
   const location = useLocation();
@@ -13,6 +56,36 @@ function GameView() {
   const [isCurrentPlayer, setIsCurrentPlayer] = useState(false);
 
   const BASE_URL = process.env.REACT_APP_API_URL || "https://overtime-cards-api.onrender.com/api/v1";
+
+  const handleLeaveGame = async () => {
+    try {
+      // Send leave_room message through WebSocket
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'leave_room' }));
+      }
+      
+      // Call leave room API endpoint
+      const response = await fetch(`${BASE_URL}/rooms/${roomCode}/leave`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Origin': window.location.origin
+        },
+        body: JSON.stringify({ username })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to leave room');
+      }
+    } catch (err) {
+      console.error('Error leaving room:', err);
+    } finally {
+      // Navigate away regardless of API call result
+      navigate('/');
+    }
+  };
 
   useEffect(() => {
     if (!playerId || !username || !gameType) {
@@ -171,45 +244,7 @@ function GameView() {
   };
 
   const renderCard = (card, index, isInHand = false) => {
-    if (!card) return null;
-    
-    // Generate the proper image path based on card rank and suit
-    const imagePath = card.show_back ? 
-      '/assets/cards/back.png' : 
-      `/assets/cards/${card.suit.toLowerCase()}_${card.rank.toLowerCase()}.png`;
-    
-    const [isHovered, setIsHovered] = useState(false);
-    
-    return (
-      <div
-        className="card-container"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        style={{
-          position: 'relative',
-          display: 'inline-block',
-          marginLeft: isInHand ? '-30px' : '0', // Overlap cards in hand
-          zIndex: isHovered ? 10 : index, // Bring hovered card to front
-          transition: 'all 0.2s ease',
-          transform: isHovered ? 'translateY(-20px) scale(1.1)' : 'none',
-          cursor: isInHand ? 'pointer' : 'default'
-        }}
-      >
-        <img 
-          src={imagePath}
-          alt={card.show_back ? "Card back" : `${card.rank} of ${card.suit}`}
-          className="card-image"
-          style={{
-            width: '80px',
-            height: 'auto',
-            borderRadius: '8px',
-            boxShadow: isHovered ? '0 4px 8px rgba(0,0,0,0.2)' : '0 2px 4px rgba(0,0,0,0.1)',
-            border: '2px solid transparent',
-            transition: 'all 0.2s ease'
-          }}
-        />
-      </div>
-    );
+    return <Card card={card} index={index} isInHand={isInHand} />;
   };
 
   const renderPlayerHand = (player, position) => {
