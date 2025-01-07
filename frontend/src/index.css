@@ -531,4 +531,97 @@ body {
   .lobby-content {
     grid-template-columns: 1fr;
   }
+}
+
+/* Admin Menu Styles */
+.admin-menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.admin-menu {
+  background-color: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  position: relative;
+  width: 90%;
+  max-width: 400px;
+}
+
+.admin-menu h2 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: #333;
+}
+
+.admin-menu .close-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #666;
+}
+
+.admin-menu .close-button:hover {
+  color: #333;
+}
+
+.admin-menu .form-group {
+  margin-bottom: 1rem;
+}
+
+.admin-menu .input-field {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.admin-menu .button {
+  width: 100%;
+  padding: 0.75rem;
+  margin-top: 1rem;
+  border: none;
+  border-radius: 4px;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.admin-menu .button:hover {
+  background-color: #0056b3;
+}
+
+.admin-menu .button.danger {
+  background-color: #dc3545;
+}
+
+.admin-menu .button.danger:hover {
+  background-color: #c82333;
+}
+
+.admin-menu .error {
+  color: #dc3545;
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.admin-menu .success {
+  color: #28a745;
+  margin-top: 1rem;
+  text-align: center;
 } 

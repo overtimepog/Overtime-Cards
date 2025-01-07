@@ -1,8 +1,23 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import AdminMenu from './AdminMenu';
 
 function MainMenu() {
   const navigate = useNavigate();
+  const [showAdminMenu, setShowAdminMenu] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Show admin menu on Ctrl + Shift + A
+      if (e.ctrlKey && e.shiftKey && e.key === 'A') {
+        e.preventDefault();
+        setShowAdminMenu(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   return (
     <div className="main-menu">
@@ -79,6 +94,8 @@ function MainMenu() {
           ))}
         </div>
       </div>
+
+      {showAdminMenu && <AdminMenu onClose={() => setShowAdminMenu(false)} />}
     </div>
   );
 }
