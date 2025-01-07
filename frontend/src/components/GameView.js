@@ -26,15 +26,44 @@ const useGameDropZones = (gameState, playerId, handleCardDrop) => {
   const discard = useDropZone('discard', handleCardDrop);
   const center = useDropZone('center', handleCardDrop);
 
-  // Player drop zones
-  const playerZones = {};
+  // Create player drop zones upfront
+  const playerDropZones = {};
   if (gameState?.players) {
-    Object.keys(gameState.players)
-      .filter(id => id !== playerId)
-      .forEach(id => {
-        playerZones[id] = useDropZone('player', handleCardDrop, id);
-      });
+    const otherPlayerIds = Object.keys(gameState.players).filter(id => id !== playerId);
+    otherPlayerIds.forEach(id => {
+      // Create a drop zone for each player
+      const { isOver, drop } = useDropZone('player', handleCardDrop, id);
+      playerDropZones[id] = { isOver, drop };
+    });
   }
+
+  const getDropRef = (type, pid = null) => {
+    if (type === 'player' && pid) {
+      return playerDropZones[pid]?.drop;
+    }
+    const dropRefs = {
+      foundation: foundation.drop,
+      corner: corner.drop,
+      meld: meld.drop,
+      discard: discard.drop,
+      center: center.drop
+    };
+    return dropRefs[type];
+  };
+
+  const getIsOver = (type, pid = null) => {
+    if (type === 'player' && pid) {
+      return playerDropZones[pid]?.isOver;
+    }
+    const isOverStates = {
+      foundation: foundation.isOver,
+      corner: corner.isOver,
+      meld: meld.isOver,
+      discard: discard.isOver,
+      center: center.isOver
+    };
+    return isOverStates[type];
+  };
 
   return {
     foundation,
@@ -42,31 +71,9 @@ const useGameDropZones = (gameState, playerId, handleCardDrop) => {
     meld,
     discard,
     center,
-    players: playerZones,
-    getDropRef: (type, pid = null) => {
-      if (type === 'player' && pid) {
-        return playerZones[pid]?.drop;
-      }
-      return {
-        foundation: foundation.drop,
-        corner: corner.drop,
-        meld: meld.drop,
-        discard: discard.drop,
-        center: center.drop
-      }[type];
-    },
-    getIsOver: (type, pid = null) => {
-      if (type === 'player' && pid) {
-        return playerZones[pid]?.isOver;
-      }
-      return {
-        foundation: foundation.isOver,
-        corner: corner.isOver,
-        meld: meld.isOver,
-        discard: discard.isOver,
-        center: center.isOver
-      }[type];
-    }
+    players: playerDropZones,
+    getDropRef,
+    getIsOver
   };
 };
 
