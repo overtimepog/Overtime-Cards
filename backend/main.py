@@ -543,8 +543,7 @@ class ConnectionManager:
                     "data": {
                         "player_id": player_id,
                         "username": username,
-                        "is_host": is_host,
-                        "is_ready": False
+                        "is_host": is_host
                     },
                     "username": "System",
                     "message": f"{username} joined the room",
@@ -865,7 +864,7 @@ async def join_room(request: Request, room_code: str, player: PlayerCreate):
                     "data": {
                         "player_id": player_id,
                         "username": player.username,
-                        "is_ready": False
+                        "is_host": False
                     }
                 },
                 room_code
@@ -981,13 +980,35 @@ async def start_game(request: Request, game: GameStart):
             )
             players = [dict(row) for row in cursor.fetchall()]
             
-            # Initialize game state
-            initial_state = {
-                'room_code': game.room_code,
-                'game_type': game.game_type,
-                'players': players,
-                'state': GameState.STARTING.value
+            # Initialize game instance
+            game_classes = {
+                "snap": snap.SnapGame,
+                "go_fish": go_fish.GoFishGame,
+                "bluff": bluff.BluffGame,
+                "scat": scat.ScatGame,
+                "rummy": rummy.RummyGame,
+                "kings_corner": kings_corner.KingsCornerGame,
+                "spades": spades.SpadesGame,
+                "spoons": spoons.SpoonsGame
             }
+            
+            # Create and initialize game instance
+            game_instance = game_classes[game.game_type](game.room_code)
+            
+            # Add all players and get host ID
+            cursor = conn.execute("SELECT host_id FROM rooms WHERE code = ?", (game.room_code,))
+            host_id = str(cursor.fetchone()['host_id'])
+            
+            for player in players:
+                str_player_id = str(player['id'])
+                is_host = (str_player_id == host_id)
+                game_instance.add_player(str_player_id, player['username'], is_host=is_host)
+            
+            # Start the game which will deal cards
+            game_instance.start_game()
+            
+            # Get the initial game state with dealt cards
+            initial_state = game_instance.get_game_state()
             
             # Create game state record
             cursor = conn.execute(
@@ -1017,7 +1038,7 @@ async def start_game(request: Request, game: GameStart):
             
             conn.commit()
             
-            # Broadcast game start to all players
+            # Broadcast game start to all players with the proper initial state
             await manager.broadcast_to_room(
                 {
                     "type": "game_started",
@@ -1701,20 +1722,20 @@ async def process_websocket_message(websocket: WebSocket, data: dict, room_code:
                         # Get all active players in the room
                         cursor = conn.execute(
                             """
-                            SELECT DISTINCT id, username, last_activity > ? as is_ready
-                            FROM players
-                            WHERE room_code = ? AND last_activity > ?
+                            SELECT DISTINCT id, username, id = r.host_id as is_host
+                            FROM players p
+                            JOIN rooms r ON r.code = p.room_code
+                            WHERE p.room_code = ? AND p.last_activity > ?
                             ORDER BY id
                             """,
-                            ((datetime.now(UTC) - timedelta(seconds=30)).isoformat(), room_code, (datetime.now(UTC) - timedelta(minutes=2)).isoformat())
+                            (room_code, (datetime.now(UTC) - timedelta(minutes=2)).isoformat())
                         )
                         players = cursor.fetchall()
                         
                         formatted_players = [{
                             'id': str(p['id']),
                             'name': p['username'],
-                            'isHost': p['id'] == result['host_id'],
-                            'isReady': p['is_ready']
+                            'isHost': bool(p['is_host'])
                         } for p in players]
                         
                         chat_history = json.loads(result['chat_history']) if result['chat_history'] else []
