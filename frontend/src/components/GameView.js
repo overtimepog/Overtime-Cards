@@ -291,20 +291,35 @@ function GameView() {
   };
 
   const calculatePlayerPosition = (index, totalPlayers, radius = 250) => {
-    // Calculate angle for this player, starting from bottom (270 degrees)
-    // Find my index in the players array
     const playerIds = Object.keys(gameState.players);
     const myIndex = playerIds.indexOf(playerId);
+    const isCurrentPlayer = playerIds[index] === playerId;
     
-    // Rotate the circle so current player is always at bottom
-    let adjustedIndex = (index - myIndex + totalPlayers) % totalPlayers;
-    const angle = (adjustedIndex * (360 / totalPlayers) + 270) % 360;
+    // If this is the current player, position at bottom
+    if (isCurrentPlayer) {
+      return {
+        left: '50%',
+        bottom: '20px', // Fixed position at bottom
+        transform: 'translateX(-50%)',
+        position: 'absolute'
+      };
+    }
+    
+    // For other players, distribute them in a semicircle at the top
+    // Adjust the number of positions to account for the current player being at bottom
+    const remainingPlayers = totalPlayers - 1;
+    const currentIndex = index > myIndex ? index - 1 : index;
+    
+    // Calculate angle for this player, using a 180-degree arc
+    const startAngle = 180; // Start from left side
+    const angleStep = 180 / (remainingPlayers + 1); // +1 to create gaps at the edges
+    const angle = startAngle - (angleStep * (currentIndex + 1));
     
     // Convert to radians and calculate position
     const rad = (angle * Math.PI) / 180;
     return {
       left: `calc(50% + ${Math.cos(rad) * radius}px)`,
-      top: `calc(50% + ${Math.sin(rad) * radius}px)`,
+      top: `calc(20% + ${-Math.sin(rad) * (radius * 0.8)}px)`, // Reduced vertical radius
       transform: 'translate(-50%, -50%)',
       position: 'absolute'
     };
@@ -314,6 +329,100 @@ function GameView() {
     if (!gameState) return null;
 
     switch (gameType) {
+      case 'snap':
+        return (
+          <div className="snap-center" style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '200px',
+            height: '200px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '20px'
+          }}>
+            {/* Center pile */}
+            <div className="center-pile" style={{
+              position: 'relative',
+              width: '100px',
+              height: '140px'
+            }}>
+              {gameState.center_pile?.slice(-1).map((card, index) => (
+                <div key={index} style={{
+                  position: 'absolute',
+                  left: '50%',
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)'
+                }}>
+                  {renderCard(card)}
+                </div>
+              ))}
+            </div>
+
+            {/* Game info */}
+            <div style={{
+              color: 'white',
+              textAlign: 'center',
+              fontSize: '1.2em'
+            }}>
+              {gameState.last_action && (
+                <div>{gameState.players[gameState.last_action.player]?.name}'s turn</div>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'bluff':
+        return (
+          <div className="bluff-center" style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '300px',
+            height: '200px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '20px'
+          }}>
+            {/* Center pile */}
+            <div className="center-pile" style={{
+              position: 'relative',
+              minHeight: '120px',
+              width: '100%',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center'
+            }}>
+              {gameState.center_pile?.map((card, index) => (
+                <div key={index} style={{
+                  position: 'absolute',
+                  transform: `rotate(${Math.random() * 10 - 5}deg) translate(${index * 0.5}px, ${index * 0.5}px)`,
+                  zIndex: index
+                }}>
+                  {renderCard(card)}
+                </div>
+              ))}
+            </div>
+
+            {/* Last play information */}
+            {gameState.last_play && (
+              <div style={{
+                color: 'white',
+                textAlign: 'center',
+                padding: '10px',
+                backgroundColor: 'rgba(0,0,0,0.3)',
+                borderRadius: '5px'
+              }}>
+                {gameState.players[gameState.last_play.player]?.name} played {gameState.last_play.count} {gameState.last_play.rank}{gameState.last_play.count !== 1 ? 's' : ''}
+              </div>
+            )}
+          </div>
+        );
+
       case 'spoons':
         return (
           <div className="spoons-container" style={{ 
@@ -329,8 +438,8 @@ function GameView() {
             flexWrap: 'wrap',
             gap: '10px'
           }}>
-            {[...Array(gameState.total_spoons || (gameState.players ? Object.keys(gameState.players).length - 1 : 0))].map((_, index) => {
-              const isAvailable = index < gameState.spoons;
+            {[...Array(gameState.total_spoons || (Object.keys(gameState.players).length - 1))].map((_, index) => {
+              const isAvailable = index < (gameState.spoons || 0);
               const lastAction = gameState.last_action;
               const wasJustGrabbed = lastAction?.action === 'grab_spoon' && index === lastAction.spoon_index;
               const grabberPosition = wasJustGrabbed && lastAction.player && gameState.players[lastAction.player] ? 
@@ -356,7 +465,7 @@ function GameView() {
                   }}
                 >
                   <img 
-                    src="/spoon-at-45-degree-angle.png"
+                    src="/assets/spoon-at-45-degree-angle.png"
                     alt="Spoon"
                     style={{
                       width: '40px',
@@ -393,9 +502,26 @@ function GameView() {
                   position: 'absolute',
                   left: '50%',
                   top: '50%',
-                  transform: `translate(-50%, -50%) translate(${Math.cos(angle * Math.PI / 180) * 60}px, ${Math.sin(angle * Math.PI / 180) * 60}px)`
+                  transform: `translate(-50%, -50%) translate(${Math.cos(angle * Math.PI / 180) * 60}px, ${Math.sin(angle * Math.PI / 180) * 60}px)`,
+                  cursor: isCurrentPlayer ? 'pointer' : 'default'
                 }}>
-                  {pile.map((card, cardIndex) => renderCard(card))}
+                  {pile.length > 0 ? (
+                    pile.map((card, cardIndex) => (
+                      <div key={cardIndex} style={{
+                        position: 'absolute',
+                        transform: `translateY(${cardIndex * 2}px)`
+                      }}>
+                        {renderCard(card)}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="empty-pile" style={{
+                      width: '80px',
+                      height: '120px',
+                      border: '2px dashed rgba(255,255,255,0.3)',
+                      borderRadius: '8px'
+                    }} />
+                  )}
                 </div>
               );
             })}
@@ -409,12 +535,43 @@ function GameView() {
                   position: 'absolute',
                   left: '50%',
                   top: '50%',
-                  transform: `translate(-50%, -50%) translate(${Math.cos(angle * Math.PI / 180) * 120}px, ${Math.sin(angle * Math.PI / 180) * 120}px)`
+                  transform: `translate(-50%, -50%) translate(${Math.cos(angle * Math.PI / 180) * 120}px, ${Math.sin(angle * Math.PI / 180) * 120}px)`,
+                  cursor: isCurrentPlayer ? 'pointer' : 'default'
                 }}>
-                  {pile.map((card, cardIndex) => renderCard(card))}
+                  {pile.length > 0 ? (
+                    pile.map((card, cardIndex) => (
+                      <div key={cardIndex} style={{
+                        position: 'absolute',
+                        transform: `translateY(${cardIndex * 2}px)`
+                      }}>
+                        {renderCard(card)}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="empty-pile" style={{
+                      width: '80px',
+                      height: '120px',
+                      border: '2px dashed rgba(255,255,255,0.3)',
+                      borderRadius: '8px'
+                    }} />
+                  )}
                 </div>
               );
             })}
+
+            {/* Draw pile */}
+            <div className="draw-pile" style={{
+              position: 'absolute',
+              left: '50%',
+              top: '50%',
+              transform: 'translate(-50%, -50%)',
+              cursor: isCurrentPlayer ? 'pointer' : 'default'
+            }}>
+              {gameState.deck?.cards_remaining > 0 && renderCard({
+                show_back: true,
+                image_back: '/assets/cards/back.png'
+              })}
+            </div>
           </div>
         );
 
@@ -467,7 +624,7 @@ function GameView() {
               >
                 {gameState.deck?.cards_remaining > 0 && renderCard({
                   show_back: true,
-                  image_back: '/card-back.png'
+                  image_back: '/assets/cards/back.png'
                 })}
                 <div style={{
                   position: 'absolute',
@@ -528,33 +685,102 @@ function GameView() {
 
       case 'rummy':
         return (
-          <div className="table-center" style={{
+          <div className="rummy-center" style={{
             position: 'absolute',
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
+            width: '600px',
+            height: '400px',
             display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
             gap: '20px'
           }}>
-            {/* Draw pile */}
-            <div className="draw-pile" style={{
-              position: 'relative',
-              width: '80px',
-              height: '120px'
+            {/* Melds area */}
+            <div className="melds-area" style={{
+              width: '100%',
+              minHeight: '150px',
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '10px',
+              padding: '10px',
+              backgroundColor: 'rgba(0,0,0,0.2)',
+              borderRadius: '10px'
             }}>
-              {gameState.deck?.cards_remaining > 0 && renderCard({
-                show_back: true,
-                image_back: '/card-back.png'
-              })}
+              {gameState.melds?.map((meld, meldIndex) => (
+                <div key={meldIndex} className="meld" style={{
+                  display: 'flex',
+                  gap: '5px'
+                }}>
+                  {meld.map((card, cardIndex) => (
+                    <div key={cardIndex} style={{
+                      transform: 'translateX(-30px)',
+                      marginLeft: cardIndex === 0 ? '0' : '-30px'
+                    }}>
+                      {renderCard(card)}
+                    </div>
+                  ))}
+                </div>
+              ))}
             </div>
-            
-            {/* Discard pile */}
-            <div className="discard-pile" style={{
-              position: 'relative',
-              width: '80px',
-              height: '120px'
+
+            {/* Draw and Discard piles */}
+            <div className="card-piles" style={{
+              display: 'flex',
+              gap: '40px',
+              alignItems: 'center'
             }}>
-              {gameState.discard_pile?.slice(-1).map(card => renderCard(card))}
+              {/* Draw pile */}
+              <div 
+                className="draw-pile"
+                onClick={() => isCurrentPlayer && handleGameAction('draw_card', { source: 'deck' })}
+                style={{
+                  position: 'relative',
+                  cursor: isCurrentPlayer ? 'pointer' : 'default'
+                }}
+              >
+                {gameState.deck?.cards_remaining > 0 && renderCard({
+                  show_back: true,
+                  image_back: '/assets/cards/back.png'
+                })}
+                <div style={{
+                  position: 'absolute',
+                  bottom: '-25px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  color: 'white',
+                  fontSize: '0.8em'
+                }}>
+                  Draw ({gameState.deck?.cards_remaining})
+                </div>
+              </div>
+
+              {/* Discard pile */}
+              <div 
+                className="discard-pile"
+                onClick={() => isCurrentPlayer && handleGameAction('draw_card', { source: 'discard' })}
+                style={{
+                  position: 'relative',
+                  cursor: isCurrentPlayer ? 'pointer' : 'default'
+                }}
+              >
+                {gameState.discard_pile?.slice(-1).map((card, index) => (
+                  <div key={index}>
+                    {renderCard(card)}
+                  </div>
+                ))}
+                <div style={{
+                  position: 'absolute',
+                  bottom: '-25px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  color: 'white',
+                  fontSize: '0.8em'
+                }}>
+                  Discard
+                </div>
+              </div>
             </div>
           </div>
         );
@@ -566,66 +792,135 @@ function GameView() {
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            width: '300px',
-            height: '200px'
+            width: '400px',
+            height: '300px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '20px'
           }}>
+            {/* Game info */}
+            <div className="game-info" style={{
+              color: 'white',
+              textAlign: 'center',
+              fontSize: '1.2em'
+            }}>
+              <div>Trump: ♠</div>
+              {gameState.current_trick_winner && (
+                <div style={{ color: '#FFD700' }}>
+                  {gameState.players[gameState.current_trick_winner]?.name} won the trick!
+                </div>
+              )}
+            </div>
+
             {/* Current trick */}
             <div className="current-trick" style={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              gap: '10px'
+              position: 'relative',
+              width: '200px',
+              height: '200px'
             }}>
-              {gameState.current_trick?.map((card, index) => (
-                <div key={index} style={{
-                  transform: `rotate(${index * 90}deg)`
-                }}>
-                  {renderCard(card)}
-                </div>
-              ))}
+              {gameState.current_trick?.map((play, index) => {
+                const angle = index * (360 / 4); // 4 positions for 4 players
+                const radius = 80; // Distance from center
+                return (
+                  <div key={index} style={{
+                    position: 'absolute',
+                    left: '50%',
+                    top: '50%',
+                    transform: `translate(-50%, -50%) rotate(${angle}deg) translate(${radius}px) rotate(-${angle}deg)`
+                  }}>
+                    {renderCard(play.card)}
+                    <div style={{
+                      position: 'absolute',
+                      bottom: '-20px',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      color: 'white',
+                      fontSize: '0.8em',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {gameState.players[play.player]?.name}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            
-            {/* Display current scores and bids */}
-            <div className="game-info" style={{
-              position: 'absolute',
-              top: '-30px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              color: 'white',
-              textAlign: 'center'
+
+            {/* Score display */}
+            <div className="scores" style={{
+              display: 'flex',
+              gap: '20px',
+              color: 'white'
             }}>
-              <div>Tricks needed: {gameState.tricks_needed}</div>
-              <div>Trump: ♠</div>
+              <div>NS: {gameState.scores?.ns || 0}</div>
+              <div>EW: {gameState.scores?.ew || 0}</div>
             </div>
           </div>
         );
 
-      case 'snap':
-      case 'bluff':
       case 'go_fish':
-      default:
-        return gameState.center_pile && (
-          <div className="center-pile" style={{ 
+        return (
+          <div className="go-fish-center" style={{ 
             position: 'absolute',
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            width: '200px',
-            height: '200px'
+            width: '400px',
+            height: '300px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '20px'
           }}>
-            <div className="cards" style={{ 
+            {/* Draw pile */}
+            <div className="draw-pile" style={{
               position: 'relative',
-              width: '100%',
-              height: '100%'
+              cursor: isCurrentPlayer ? 'pointer' : 'default'
             }}>
-              {gameState.center_pile.map((card, index) => (
-                <div key={index} style={{ 
-                  position: 'absolute',
-                  left: '50%',
-                  top: '50%',
-                  transform: `translate(-50%, -50%) rotate(${index * (360 / gameState.center_pile.length)}deg) translateY(-20px)`
+              {gameState.deck?.cards_remaining > 0 && renderCard({
+                show_back: true,
+                image_back: '/assets/cards/back.png'
+              })}
+              <div style={{
+                position: 'absolute',
+                bottom: '-25px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                color: 'white',
+                fontSize: '0.8em'
+              }}>
+                Fish Pond ({gameState.deck?.cards_remaining})
+              </div>
+            </div>
+
+            {/* Game info */}
+            {gameState.last_action && (
+              <div style={{
+                color: 'white',
+                textAlign: 'center',
+                padding: '10px',
+                backgroundColor: 'rgba(0,0,0,0.3)',
+                borderRadius: '5px'
+              }}>
+                {gameState.players[gameState.last_action.player]?.name} asked for {gameState.last_action.rank}s
+                {gameState.last_action.success ? ' and got them!' : ' - Go Fish!'}
+              </div>
+            )}
+
+            {/* Books display */}
+            <div className="books" style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '10px',
+              justifyContent: 'center'
+            }}>
+              {Object.entries(gameState.books || {}).map(([playerId, books]) => (
+                <div key={playerId} style={{
+                  color: 'white',
+                  textAlign: 'center'
                 }}>
-                  {renderCard(card)}
+                  <div>{gameState.players[playerId]?.name}</div>
+                  <div>Books: {books.length}</div>
                 </div>
               ))}
             </div>
