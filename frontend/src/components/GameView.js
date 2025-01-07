@@ -9,8 +9,8 @@ const Card = React.memo(({ card, index, isInHand }) => {
   
   // Generate the proper image path based on card rank and suit
   const imagePath = card.show_back ? 
-    '/assets/cards/back.png' : 
-    `/assets/cards/${card.suit.toLowerCase()}_${card.rank.toLowerCase()}.png`;
+    '/public/cards/back_dark.png' : 
+    `/public/cards/${card.suit.toLowerCase()}_${card.rank}.png`;
   
   return (
     <div
@@ -465,7 +465,7 @@ function GameView() {
                   }}
                 >
                   <img 
-                    src="/assets/spoon-at-45-degree-angle.png"
+                    src="/public/spoon-at-45-degree-angle.png"
                     alt="Spoon"
                     style={{
                       width: '40px',
@@ -569,7 +569,7 @@ function GameView() {
             }}>
               {gameState.deck?.cards_remaining > 0 && renderCard({
                 show_back: true,
-                image_back: '/assets/cards/back.png'
+                image_back: '/public/cards/back_dark.png'
               })}
             </div>
           </div>
@@ -624,7 +624,7 @@ function GameView() {
               >
                 {gameState.deck?.cards_remaining > 0 && renderCard({
                   show_back: true,
-                  image_back: '/assets/cards/back.png'
+                  image_back: '/public/cards/back_dark.png'
                 })}
                 <div style={{
                   position: 'absolute',
@@ -742,7 +742,7 @@ function GameView() {
               >
                 {gameState.deck?.cards_remaining > 0 && renderCard({
                   show_back: true,
-                  image_back: '/assets/cards/back.png'
+                  image_back: '/public/cards/back_dark.png'
                 })}
                 <div style={{
                   position: 'absolute',
@@ -879,7 +879,7 @@ function GameView() {
             }}>
               {gameState.deck?.cards_remaining > 0 && renderCard({
                 show_back: true,
-                image_back: '/assets/cards/back.png'
+                image_back: '/public/cards/back_dark.png'
               })}
               <div style={{
                 position: 'absolute',
