@@ -279,12 +279,12 @@ async def cleanup_inactive_rooms():
                         AND NOT EXISTS (
                             SELECT 1 FROM players 
                             WHERE players.room_code = rooms.code
-                            AND players.status != 'inactive'
+                            AND players.last_activity > ?
                         )
                     )
                 )
                 """,
-                (inactive_room_cutoff, empty_room_cutoff)
+                (inactive_room_cutoff, empty_room_cutoff, empty_room_cutoff)
             )
             inactive_rooms = [row['code'] for row in cursor.fetchall()]
             
@@ -296,9 +296,9 @@ async def cleanup_inactive_rooms():
                     inactive_rooms
                 )
                 
-                # Mark players in these rooms as inactive
+                # Remove room_code from players in these rooms
                 conn.execute(
-                    "UPDATE players SET room_code = NULL, status = 'inactive' WHERE room_code IN ({})".format(
+                    "UPDATE players SET room_code = NULL WHERE room_code IN ({})".format(
                         ','.join('?' * len(inactive_rooms))
                     ),
                     inactive_rooms
@@ -335,11 +335,11 @@ async def cleanup_inactive_players():
             in_room_cutoff = (datetime.utcnow() - timedelta(minutes=2)).isoformat()
             no_room_cutoff = (datetime.utcnow() - timedelta(minutes=1)).isoformat()
             
-            # First mark players as inactive if they've been inactive too long
+            # Remove room_code from inactive players
             conn.execute(
                 """
                 UPDATE players 
-                SET status = 'inactive', room_code = NULL
+                SET room_code = NULL
                 WHERE (
                     (room_code IS NOT NULL AND last_activity < ?) 
                     OR (room_code IS NULL AND last_activity < ?)
@@ -348,18 +348,17 @@ async def cleanup_inactive_players():
                 (in_room_cutoff, no_room_cutoff)
             )
             
-            # Then delete inactive players that have been inactive for even longer
+            # Then delete players that have been inactive for even longer
             delete_cutoff = (datetime.utcnow() - timedelta(hours=24)).isoformat()
             cursor = conn.execute(
                 """
                 SELECT id FROM players 
-                WHERE status = 'inactive' 
-                AND last_activity < ?
+                WHERE last_activity < ?
                 """,
                 (delete_cutoff,)
             )
             inactive_players = [row['id'] for row in cursor.fetchall()]
-            
+
             if inactive_players:
                 # Delete the inactive players
                 conn.execute(
@@ -444,7 +443,7 @@ async def shutdown_event():
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with your frontend domain
+    allow_origins=settings.CORS_ORIGINS,  # Use configured origins instead of "*"
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -512,12 +511,12 @@ class ConnectionManager:
             cursor = conn.execute(
                 """
                 SELECT p.username, p.id = r.host_id as is_host, r.chat_history,
-                       (SELECT COUNT(*) FROM players WHERE room_code = r.code AND status != 'inactive') as player_count
+                       (SELECT COUNT(*) FROM players WHERE room_code = r.code AND last_activity > ?) as player_count
                 FROM players p
                 JOIN rooms r ON r.code = p.room_code
                 WHERE p.id = ? AND p.room_code = ?
                 """,
-                (player_id, room_code)
+                ((datetime.utcnow() - timedelta(minutes=2)).isoformat(), player_id, room_code)
             )
             player = cursor.fetchone()
             
@@ -527,16 +526,16 @@ class ConnectionManager:
                 host_status = "host" if is_host else "player"
                 logger.info(f"{username} ({host_status}, ID: {player_id}) connected to room {room_code}")
                 
-                # Update player status to active
+                # Update player activity
                 conn.execute(
                     """
                     UPDATE players 
-                    SET status = 'active', last_activity = ? 
+                    SET last_activity = ? 
                     WHERE id = ? AND room_code = ?
                     """,
                     (datetime.utcnow().isoformat(), player_id, room_code)
                 )
-                
+
                 # Add system message about player joining
                 join_message = {
                     "type": "player_joined",
@@ -544,7 +543,7 @@ class ConnectionManager:
                         "player_id": player_id,
                         "username": username,
                         "is_host": is_host,
-                        "status": "not ready"
+                        "is_ready": False
                     },
                     "username": "System",
                     "message": f"{username} joined the room",
@@ -598,51 +597,39 @@ class ConnectionManager:
                                 host_status = "host" if was_host else "player"
                                 logger.info(f"{username} ({host_status}, ID: {player_id}) disconnected from room {room_code}")
                                 
-                                # Mark player as inactive and clear room association
+                                # Clear room association
                                 conn.execute(
                                     """
                                     UPDATE players 
-                                    SET status = 'inactive', room_code = NULL 
+                                    SET room_code = NULL 
                                     WHERE id = ?
                                     """,
                                     (player_id,)
                                 )
                                 
-                                # Add system message about player disconnecting
-                                disconnect_message = {
-                                    "type": "player_disconnect",
-                                    "username": "System",
-                                    "message": f"{username} left the room",
-                                    "isSystem": True,
-                                    "timestamp": datetime.utcnow().isoformat(),
-                                    "player_id": player_id,
-                                    "player_name": username
-                                }
-                                await self.broadcast_to_room(disconnect_message, room_code)
-                                
-                                # If player was host, assign new host
+                                # If player was host, check for remaining active players
                                 if was_host:
                                     cursor = conn.execute(
                                         """
                                         SELECT id, username
                                         FROM players
-                                        WHERE room_code = ? AND id != ? AND status != 'inactive'
+                                        WHERE room_code = ? AND id != ? AND last_activity > ?
                                         ORDER BY last_activity DESC
                                         LIMIT 1
                                         """,
-                                        (room_code, player_id)
+                                        (room_code, player_id, (datetime.utcnow() - timedelta(minutes=2)).isoformat())
                                     )
                                     new_host = cursor.fetchone()
                                     
                                     if new_host:
-                                        # Update host in database
+                                        # Assign new host
                                         conn.execute(
                                             "UPDATE rooms SET host_id = ? WHERE code = ?",
                                             (new_host['id'], room_code)
                                         )
                                         
-                                        # Broadcast host update
-                                        host_update_message = {
+                                        # Add system message about new host
+                                        host_message = {
                                             "type": "host_update",
                                             "username": "System",
                                             "message": f"{new_host['username']} is now the host",
@@ -651,19 +638,12 @@ class ConnectionManager:
                                             "new_host_id": new_host['id'],
                                             "new_host_name": new_host['username']
                                         }
-                                        await self.broadcast_to_room(host_update_message, room_code)
+                                        await manager.broadcast_to_room(host_message, room_code)
                                     else:
-                                        # No players left, delete room and game state
+                                        # No active players left, delete the room
                                         conn.execute("DELETE FROM game_state WHERE room_code = ?", (room_code,))
                                         conn.execute("DELETE FROM rooms WHERE code = ?", (room_code,))
-                                
-                                conn.commit()
-                            else:
-                                logger.info(f"Player {player['username']} (ID: {player_id}) disconnected from room {room_code}")
-                                # Still clean up connection
-                                del self.active_connections[room_code][player_id]
-                                if not self.active_connections[room_code]:
-                                    del self.active_connections[room_code]
+
                     except sqlite3.Error as e:
                         logger.error(f"Database error in disconnect: {e}")
                         # Still remove from active connections even if database operations fail
@@ -847,9 +827,9 @@ async def join_room(request: Request, room_code: str, player: PlayerCreate):
                 FROM players 
                 WHERE username = ? 
                 AND room_code = ? 
-                AND status != 'inactive'
+                AND last_activity > ?
                 """,
-                (player.username, room_code)
+                (player.username, room_code, (datetime.utcnow() - timedelta(minutes=2)).isoformat())
             )
             if cursor.fetchone()['count'] > 0:
                 raise HTTPException(status_code=400, detail="Username already taken in this room")
@@ -863,12 +843,12 @@ async def join_room(request: Request, room_code: str, player: PlayerCreate):
                 """,
                 (now, room_code)
             )
-            
+
             # Create new player
             cursor = conn.execute(
                 """
-                INSERT INTO players (username, room_code, status, last_activity)
-                VALUES (?, ?, 'not ready', ?)
+                INSERT INTO players (username, room_code, last_activity)
+                VALUES (?, ?, ?)
                 RETURNING id
                 """,
                 (player.username, room_code, now)
@@ -884,7 +864,7 @@ async def join_room(request: Request, room_code: str, player: PlayerCreate):
                     "data": {
                         "player_id": player_id,
                         "username": player.username,
-                        "status": "not ready"
+                        "is_ready": False
                     }
                 },
                 room_code
@@ -1717,68 +1697,65 @@ async def process_websocket_message(websocket: WebSocket, data: dict, room_code:
         logger.info(f"Processing WebSocket message: {message_type} from {player_info} in room {room_code}")
 
         if message_type == 'get_state':
-            # Get current game state
-            with get_db() as conn:
-                cursor = conn.execute(
-                    """
-                    SELECT gs.state, gs.players, gs.game_type, r.chat_history, r.host_id,
-                           (SELECT COUNT(*) FROM players WHERE room_code = r.code AND status != 'inactive') as player_count
-                    FROM rooms r
-                    LEFT JOIN game_state gs ON gs.room_code = r.code
-                    WHERE r.code = ?
-                    ORDER BY gs.created_at DESC
-                    LIMIT 1
-                    """,
-                    (room_code,)
-                )
-                result = cursor.fetchone()
-
-                if result:
-                    # Get all active players in the room
+            try:
+                with get_db() as conn:
                     cursor = conn.execute(
                         """
-                        SELECT DISTINCT id, username, status
-                        FROM players
-                        WHERE room_code = ? AND status != 'inactive'
-                        ORDER BY id
+                        SELECT gs.state, gs.players, gs.game_type, r.chat_history, r.host_id,
+                               (SELECT COUNT(*) FROM players WHERE room_code = r.code AND last_activity > ?) as player_count
+                        FROM rooms r
+                        LEFT JOIN game_state gs ON gs.room_code = r.code
+                        WHERE r.code = ?
+                        LIMIT 1
                         """,
-                        (room_code,)
+                        ((datetime.utcnow() - timedelta(minutes=2)).isoformat(), room_code)
                     )
-                    players = cursor.fetchall()
-                    
-                    formatted_players = [{
-                        'id': str(p['id']),
-                        'name': p['username'],
-                        'isHost': p['id'] == result['host_id'],
-                        'isReady': p['status'] == 'ready'
-                    } for p in players]
-                    
-                    chat_history = json.loads(result['chat_history']) if result['chat_history'] else []
-                    
-                    # If there's an active game
-                    if result['state']:
-                        state = json.loads(result['state'])
+                    result = cursor.fetchone()
+
+                    if result:
+                        # Get all active players in the room
+                        cursor = conn.execute(
+                            """
+                            SELECT DISTINCT id, username, last_activity > ? as is_ready
+                            FROM players
+                            WHERE room_code = ? AND last_activity > ?
+                            ORDER BY id
+                            """,
+                            ((datetime.utcnow() - timedelta(seconds=30)).isoformat(), room_code, (datetime.utcnow() - timedelta(minutes=2)).isoformat())
+                        )
+                        players = cursor.fetchall()
                         
-                        await websocket.send_json({
-                            "type": "game_state",
-                            "state": state,
-                            "players": formatted_players,
-                            "game_type": result['game_type'],
-                            "chat_history": chat_history
-                        })
-                    else:
-                        await websocket.send_json({
-                            "type": "game_state",
-                            "state": {},
-                            "players": formatted_players,
-                            "game_type": None,
-                            "chat_history": chat_history
-                        })
-                else:
-                    await websocket.send_json({
-                        "type": "error",
-                        "message": "Room not found"
-                    })
+                        formatted_players = [{
+                            'id': str(p['id']),
+                            'name': p['username'],
+                            'isHost': p['id'] == result['host_id'],
+                            'isReady': p['is_ready']
+                        } for p in players]
+                        
+                        chat_history = json.loads(result['chat_history']) if result['chat_history'] else []
+                        
+                        # If there's an active game
+                        if result['state']:
+                            state = json.loads(result['state'])
+                            
+                            await websocket.send_json({
+                                "type": "game_state",
+                                "state": state,
+                                "players": formatted_players,
+                                "game_type": result['game_type'],
+                                "chat_history": chat_history
+                            })
+                        else:
+                            await websocket.send_json({
+                                "type": "game_state",
+                                "state": {},
+                                "players": formatted_players,
+                                "game_type": None,
+                                "chat_history": chat_history
+                            })
+            except Exception as e:
+                logger.error(f"Error processing get_state: {e}")
+                raise
 
         elif message_type == 'chat':
             # Rate limit: 1 message per second, 30 messages per minute
@@ -1819,14 +1796,14 @@ async def process_websocket_message(websocket: WebSocket, data: dict, room_code:
             # Handle explicit leave room request
             if player:
                 with get_db() as conn:
-                    # Update player status to inactive
+                    # Clear room association
                     conn.execute(
                         """
-                        UPDATE players
-                        SET status = 'inactive'
-                        WHERE id = ? AND room_code = ?
+                        UPDATE players 
+                        SET room_code = NULL 
+                        WHERE id = ?
                         """,
-                        (player_id, room_code)
+                        (player_id,)
                     )
                     
                     # If player was host, check for remaining active players
@@ -1835,11 +1812,11 @@ async def process_websocket_message(websocket: WebSocket, data: dict, room_code:
                             """
                             SELECT id, username
                             FROM players
-                            WHERE room_code = ? AND id != ? AND status != 'inactive'
+                            WHERE room_code = ? AND id != ? AND last_activity > ?
                             ORDER BY last_activity DESC
                             LIMIT 1
                             """,
-                            (room_code, player_id)
+                            (room_code, player_id, (datetime.utcnow() - timedelta(minutes=2)).isoformat())
                         )
                         new_host = cursor.fetchone()
                         
@@ -1917,7 +1894,7 @@ def format_player_states(player_states, players):
             'id': player_id,
             'name': players[int(player_id)]['username'],
             'isHost': state.get('is_host', False),
-            'isReady': players[int(player_id)]['status'] == "ready"
+            'isReady': players[int(player_id)].get('is_ready', False)
         }
         player_info.update(state)
         formatted.append(player_info)

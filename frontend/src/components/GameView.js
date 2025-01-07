@@ -12,7 +12,7 @@ function GameView() {
   const { username, gameType, isHost } = location.state || {};
   const [isCurrentPlayer, setIsCurrentPlayer] = useState(false);
 
-  const BASE_URL = "https://overtime-cards-api.onrender.com/api/v1";
+  const BASE_URL = process.env.REACT_APP_API_URL || "https://overtime-cards-api.onrender.com/api/v1";
 
   useEffect(() => {
     if (!playerId || !username || !gameType) {
@@ -21,7 +21,7 @@ function GameView() {
     }
 
     // Connect to WebSocket
-    const wsUrl = `wss://overtime-cards-api.onrender.com/api/v1/ws/${roomCode}/${playerId}`;
+    const wsUrl = `${process.env.REACT_APP_WS_URL || "wss://overtime-cards-api.onrender.com/api/v1/ws"}/${roomCode}/${playerId}`;
     const websocket = new WebSocket(wsUrl);
 
     websocket.onopen = () => {

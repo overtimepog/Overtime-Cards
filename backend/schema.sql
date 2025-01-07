@@ -6,7 +6,6 @@ CREATE TABLE IF NOT EXISTS players (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL,
     room_code TEXT,
-    status TEXT DEFAULT 'not ready',
     wins INTEGER DEFAULT 0,
     last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -28,12 +27,11 @@ CREATE TABLE players_temp (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL,
     room_code TEXT,
-    status TEXT DEFAULT 'not ready',
     wins INTEGER DEFAULT 0,
     last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (room_code) REFERENCES rooms(code)
 );
-INSERT INTO players_temp SELECT * FROM players;
+INSERT INTO players_temp SELECT id, username, room_code, wins, last_activity FROM players;
 DROP TABLE players;
 ALTER TABLE players_temp RENAME TO players;
 
@@ -54,7 +52,7 @@ CREATE INDEX IF NOT EXISTS idx_players_room_code ON players(room_code);
 CREATE INDEX IF NOT EXISTS idx_rooms_code ON rooms(code);
 CREATE INDEX IF NOT EXISTS idx_game_state_room_code ON game_state(room_code);
 CREATE INDEX IF NOT EXISTS idx_player_username ON players(username);
-CREATE INDEX IF NOT EXISTS idx_player_composite ON players(room_code, status);
+CREATE INDEX IF NOT EXISTS idx_player_composite ON players(room_code);
 CREATE INDEX IF NOT EXISTS idx_player_wins ON players(wins);
 CREATE INDEX IF NOT EXISTS idx_player_last_activity ON players(last_activity);
 CREATE INDEX IF NOT EXISTS idx_room_last_activity ON rooms(last_activity);

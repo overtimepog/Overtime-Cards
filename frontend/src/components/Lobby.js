@@ -16,7 +16,7 @@ function Lobby() {
   // Track player presence to prevent duplicate join messages
   const [presentPlayers, setPresentPlayers] = useState(new Set());
 
-  const BASE_URL = "https://overtime-cards-api.onrender.com/api/v1";
+  const BASE_URL = process.env.REACT_APP_API_URL || "https://overtime-cards-api.onrender.com/api/v1";
 
   // Auto scroll chat to bottom when new messages arrive
   useEffect(() => {
@@ -123,7 +123,10 @@ function Lobby() {
           if (data.type === 'game_state') {
             if (data.players) {
               // Set players directly from API response
-              setPlayers(data.players);
+              setPlayers(data.players.map(player => ({
+                ...player,
+                isHost: player.isHost
+              })));
               // Initialize present players from game state
               setPresentPlayers(new Set(data.players.map(p => p.id)));
             }
@@ -347,7 +350,9 @@ function Lobby() {
             {players.map((player) => (
               <div key={player.id} className={`player ${player.isHost ? 'host' : ''}`}>
                 <span className="player-name">{player.name}</span>
-                {player.isHost && <span className="host-badge">Host</span>}
+                <div className="player-badges">
+                  {player.isHost && <span className="host-badge">Host</span>}
+                </div>
               </div>
             ))}
           </div>

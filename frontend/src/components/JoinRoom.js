@@ -7,7 +7,7 @@ function JoinRoom() {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const BASE_URL = "https://overtime-cards-api.onrender.com/api/v1";
+  const BASE_URL = process.env.REACT_APP_API_URL || "https://overtime-cards-api.onrender.com/api/v1";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
