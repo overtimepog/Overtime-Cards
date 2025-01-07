@@ -531,7 +531,7 @@ class ConnectionManager:
                 conn.execute(
                     """
                     UPDATE players 
-                    SET status = 'not ready', last_activity = ? 
+                    SET status = 'active', last_activity = ? 
                     WHERE id = ? AND room_code = ?
                     """,
                     (datetime.utcnow().isoformat(), player_id, room_code)
@@ -971,7 +971,7 @@ async def start_game(request: Request, game: GameStart):
                 """
                 SELECT COUNT(*) as player_count
                 FROM players
-                WHERE room_code = ? AND status != 'inactive'
+                WHERE room_code = ? AND status = 'active'
                 """,
                 (game.room_code,)
             )
@@ -994,7 +994,7 @@ async def start_game(request: Request, game: GameStart):
                 """
                 SELECT id, username, status
                 FROM players
-                WHERE room_code = ? AND status != 'inactive'
+                WHERE room_code = ? AND status = 'active'
                 """,
                 (game.room_code,)
             )

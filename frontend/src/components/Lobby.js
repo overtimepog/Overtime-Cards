@@ -159,8 +159,7 @@ function Lobby() {
               return [...filtered, {
                 id: playerId,
                 name: data.data.username,
-                isHost: data.data.is_host || false,
-                isReady: data.data.status === 'ready'
+                isHost: data.data.is_host || false
               }];
             });
           } else if (data.type === 'player_disconnect') {
