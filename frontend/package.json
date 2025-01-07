@@ -19,10 +19,16 @@
     "react-dnd": "^15.1.0",
     "react-dnd-html5-backend": "^15.1.0"
   },
+  "devDependencies": {
+    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "react-app-rewired": "^2.2.1"
+  },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
+    "start": "react-app-rewired start",
+    "build": "react-app-rewired build",
+    "test": "react-app-rewired test",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
