@@ -42,7 +42,6 @@ CREATE TABLE IF NOT EXISTS game_state (
     game_type TEXT NOT NULL,
     players TEXT NOT NULL,
     state TEXT NOT NULL,
-    status TEXT DEFAULT 'waiting',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (room_code) REFERENCES rooms(code)
 );
@@ -58,5 +57,4 @@ CREATE INDEX IF NOT EXISTS idx_player_last_activity ON players(last_activity);
 CREATE INDEX IF NOT EXISTS idx_room_last_activity ON rooms(last_activity);
 CREATE INDEX IF NOT EXISTS idx_room_host ON rooms(host_id);
 CREATE INDEX IF NOT EXISTS idx_room_composite ON rooms(code, host_id, game_state);
-CREATE INDEX IF NOT EXISTS idx_game_state_status ON game_state(status);
-CREATE INDEX IF NOT EXISTS idx_game_state_composite ON game_state(room_code, game_type, status);
+CREATE INDEX IF NOT EXISTS idx_game_state_composite ON game_state(room_code, game_type);

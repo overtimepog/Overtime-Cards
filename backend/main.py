@@ -992,8 +992,8 @@ async def start_game(request: Request, game: GameStart):
             # Create game state record
             cursor = conn.execute(
                 """
-                INSERT INTO game_state (room_code, game_type, players, state, status)
-                VALUES (?, ?, ?, ?, 'active')
+                INSERT INTO game_state (room_code, game_type, players, state)
+                VALUES (?, ?, ?, ?)
                 RETURNING id
                 """,
                 (
@@ -1172,7 +1172,7 @@ async def game_action(request: Request, action: GameAction):
                 SELECT g.*, p.*, g.game_type as game_type
                 FROM game_state g
                 JOIN players p ON p.room_code = g.room_code AND p.id = ?
-                WHERE g.id = ? AND g.status = 'active'
+                WHERE g.id = ?
                 """,
                 (action.player_id, game_state_id)
             )
@@ -1185,24 +1185,8 @@ async def game_action(request: Request, action: GameAction):
             # Convert result to dictionary
             result = dict(result)
             
-            logger.info(f"Found game state: type={result['game_type']}, status={result['status']}")
+            logger.info(f"Found game state: type={result['game_type']}")
             
-            if result['status'] != 'active':
-                try:
-                    # Ensure game state is active
-                    conn.execute(
-                        """
-                        UPDATE game_state
-                        SET status = 'active'
-                        WHERE id = ?
-                        """,
-                        (game_state_id,)
-                    )
-                    conn.commit()
-                except sqlite3.Error as e:
-                    logger.error(f"Error updating game state status: {e}")
-                    raise HTTPException(status_code=500, detail="Error updating game state")
-
             # Get all players in room
             cursor = conn.execute(
                 "SELECT * FROM players WHERE room_code = ?",
