@@ -11,10 +11,8 @@ import {
   defaultDropAnimationSideEffects,
   pointerWithin,
   rectIntersection,
-  getFirstCollision,
   MeasuringStrategy,
 } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
 import { Draggable } from './Draggable';
 import { Droppable } from './Droppable';
 import backDark from '../components/cards/back_dark.png';
@@ -114,14 +112,14 @@ function GameView() {
   const [error, setError] = useState('');
   const [ws, setWs] = useState(null);
   const [selectedCards, setSelectedCards] = useState([]);
-  const { username, gameType, isHost } = location.state || {};
-  const [isCurrentPlayer, setIsCurrentPlayer] = useState(false);
+  const { username, gameType } = location.state || {};
   const [showPlayerSelection, setShowPlayerSelection] = useState(false);
   const [activeId, setActiveId] = useState(null);
   const [activeDragData, setActiveDragData] = useState(null);
+  const [isCurrentPlayer, setIsCurrentPlayer] = useState(false);
 
   // Initialize drop zones using the custom hook
-  const { dropZoneIds, dropZoneData } = useGameDropZones(gameState, playerId);
+  const { dropZoneData } = useGameDropZones(gameState, playerId);
 
   const BASE_URL = process.env.REACT_APP_API_URL || "https://overtime-cards-api.onrender.com/api/v1";
 
@@ -1021,191 +1019,17 @@ function GameView() {
           </div>
         );
 
-      case 'go_fish':
+      default:
         return (
-          <div className="go-fish-center" style={{ 
+          <div className="unsupported-game" style={{
             position: 'absolute',
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            width: '400px',
-            maxHeight: '40vh',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '20px',
-            justifyContent: 'center'
+            color: 'white',
+            textAlign: 'center'
           }}>
-            {/* Draw pile */}
-            <div 
-              className="draw-pile" 
-              onClick={() => isCurrentPlayer && handleGameAction('draw_card')}
-              style={{
-                position: 'relative',
-                cursor: isCurrentPlayer ? 'pointer' : 'default',
-                transition: 'transform 0.2s',
-                transform: isCurrentPlayer ? 'scale(1.05)' : 'scale(1)'
-              }}
-            >
-              {gameState.deck?.cards_remaining > 0 && renderCard({
-                show_back: true,
-                image_back: '/public/cards/back_dark.png'
-              }, 0, false, {
-                canDrag: false
-              })}
-              <div style={{
-                position: 'absolute',
-                bottom: '-25px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                color: 'white',
-                fontSize: '0.8em'
-              }}>
-                Fish Pond ({gameState.deck?.cards_remaining})
-              </div>
-            </div>
-
-            {/* Game info */}
-            {gameState.last_action && (
-              <div style={{
-                color: 'white',
-                textAlign: 'center',
-                padding: '10px',
-                backgroundColor: 'rgba(0,0,0,0.3)',
-                borderRadius: '5px',
-                maxWidth: '80%'
-              }}>
-                {gameState.players[gameState.last_action.player]?.name} asked for {gameState.last_action.rank}s
-                {gameState.last_action.success ? ' and got them!' : ' - Go Fish!'}
-              </div>
-            )}
-
-            {/* Ask button and player selection when a card is selected */}
-            {isCurrentPlayer && selectedCards.length === 1 && (
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '10px'
-              }}>
-                <button
-                  onClick={() => {
-                    // Show player selection after clicking Ask
-                    setShowPlayerSelection(true);
-                  }}
-                  style={{
-                    backgroundColor: '#4CAF50',
-                    color: 'white',
-                    border: 'none',
-                    padding: '10px 20px',
-                    borderRadius: '5px',
-                    cursor: 'pointer',
-                    fontSize: '1.1em',
-                    fontWeight: 'bold'
-                  }}
-                >
-                  Ask for {gameState.players[playerId].hand[selectedCards[0]]?.rank}s
-                </button>
-              </div>
-            )}
-
-            {/* Player selection dialog */}
-            {showPlayerSelection && selectedCards.length === 1 && (
-              <div style={{
-                position: 'fixed',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                backgroundColor: 'rgba(0,0,0,0.9)',
-                padding: '20px',
-                borderRadius: '10px',
-                zIndex: 1000,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '10px',
-                minWidth: '200px'
-              }}>
-                <div style={{
-                  color: 'white',
-                  textAlign: 'center',
-                  marginBottom: '10px',
-                  fontSize: '1.1em'
-                }}>
-                  Who do you want to ask?
-                </div>
-                {Object.entries(gameState.players || {})
-                  .filter(([id]) => id !== playerId)
-                  .map(([id, player]) => (
-                    <button
-                      key={id}
-                      onClick={() => {
-                        handleGameAction('ask_for_cards', {
-                          target_player_id: id,
-                          rank: gameState.players[playerId].hand[selectedCards[0]]?.rank
-                        });
-                        setSelectedCards([]);
-                        setShowPlayerSelection(false);
-                      }}
-                      style={{
-                        backgroundColor: 'rgba(255,255,255,0.1)',
-                        color: 'white',
-                        border: 'none',
-                        padding: '10px',
-                        borderRadius: '5px',
-                        cursor: 'pointer',
-                        width: '100%',
-                        textAlign: 'left',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
-                      }}
-                    >
-                      <span>{player.name}</span>
-                      <span style={{ fontSize: '0.8em', opacity: 0.8 }}>
-                        ({player.hand_size} cards)
-                      </span>
-                    </button>
-                  ))}
-                <button
-                  onClick={() => {
-                    setSelectedCards([]);
-                    setShowPlayerSelection(false);
-                  }}
-                  style={{
-                    backgroundColor: '#dc3545',
-                    color: 'white',
-                    border: 'none',
-                    padding: '10px',
-                    borderRadius: '5px',
-                    cursor: 'pointer',
-                    marginTop: '10px'
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            )}
-
-            {/* Books display */}
-            <div className="books" style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: '10px',
-              justifyContent: 'center'
-            }}>
-              {Object.entries(gameState.books || {}).map(([playerId, books]) => (
-                <div key={playerId} style={{
-                  color: 'white',
-                  textAlign: 'center',
-                  padding: '5px 10px',
-                  backgroundColor: 'rgba(0,0,0,0.2)',
-                  borderRadius: '5px'
-                }}>
-                  <div>{gameState.players[playerId]?.name}</div>
-                  <div>Books: {books.length}</div>
-                </div>
-              ))}
-            </div>
+            Unsupported game type: {gameType}
           </div>
         );
     }
@@ -1518,6 +1342,14 @@ function GameView() {
         return null;
     }
   };
+
+  useEffect(() => {
+    if (gameState?.current_player === playerId) {
+      setIsCurrentPlayer(true);
+    } else {
+      setIsCurrentPlayer(false);
+    }
+  }, [gameState?.current_player, playerId]);
 
   return (
     <DndContext

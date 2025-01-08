@@ -84,7 +84,6 @@ function Lobby() {
 
     let retryCount = 0;
     const maxRetries = 3;
-    let retryTimeout;
 
     const connectWebSocket = () => {
       // Connect to WebSocket
@@ -233,7 +232,7 @@ function Lobby() {
           retryCount++;
           const delay = Math.min(1000 * Math.pow(2, retryCount), 5000); // Exponential backoff with max 5s
           console.log(`Retrying connection in ${delay}ms (${retryCount}/${maxRetries})...`);
-          retryTimeout = setTimeout(connectWebSocket, delay);
+          setTimeout(connectWebSocket, delay);
         } else {
           setError('Connection to game server lost. Please refresh the page to reconnect.');
         }
@@ -244,7 +243,7 @@ function Lobby() {
     };
 
     connectWebSocket();
-  }, [roomCode, playerId, username, navigate, isHost]);
+  }, [roomCode, playerId, username, navigate, isHost, presentPlayers]);
 
   const handleStartGame = async () => {
     try {
@@ -482,4 +481,4 @@ function Lobby() {
   );
 }
 
-export default Lobby; 
+export default Lobby;

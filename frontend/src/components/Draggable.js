@@ -8,8 +8,7 @@ export function Draggable(props) {
     listeners,
     setNodeRef,
     transform,
-    isDragging,
-    active
+    isDragging
   } = useDraggable({
     id: props.id,
     data: props.data,
