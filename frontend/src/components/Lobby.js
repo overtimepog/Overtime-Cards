@@ -84,11 +84,17 @@ function Lobby() {
 
     let retryCount = 0;
     const maxRetries = 3;
+    let websocket = null;
 
     const connectWebSocket = () => {
+      // Clean up any existing connection first
+      if (websocket) {
+        websocket.close();
+      }
+
       // Connect to WebSocket
       const wsUrl = `wss://overtime-cards-api.onrender.com/api/v1/ws/${roomCode}/${playerId}`;
-      const websocket = new WebSocket(wsUrl);
+      websocket = new WebSocket(wsUrl);
 
       websocket.onopen = () => {
         console.log('Connected to WebSocket');
@@ -243,7 +249,15 @@ function Lobby() {
     };
 
     connectWebSocket();
-  }, [roomCode, playerId, username, navigate, isHost, presentPlayers]);
+
+    // Clean up function to properly close WebSocket connection
+    return () => {
+      console.log('Cleaning up WebSocket connection');
+      if (websocket) {
+        websocket.close();
+      }
+    };
+  }, [roomCode, playerId, username, navigate, isHost]); // Remove presentPlayers from dependencies
 
   const handleStartGame = async () => {
     try {
