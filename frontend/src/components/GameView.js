@@ -113,7 +113,6 @@ function GameView() {
   const [ws, setWs] = useState(null);
   const [selectedCards, setSelectedCards] = useState([]);
   const { username, gameType } = location.state || {};
-  const [showPlayerSelection, setShowPlayerSelection] = useState(false);
   const [activeId, setActiveId] = useState(null);
   const [activeDragData, setActiveDragData] = useState(null);
   const [isCurrentPlayer, setIsCurrentPlayer] = useState(false);
@@ -1426,6 +1425,8 @@ function GameView() {
         >
           Leave Game
         </button>
+
+        {renderGameControls()}
       </div>
       <DragOverlay dropAnimation={dropAnimation}>
         {activeId ? (
