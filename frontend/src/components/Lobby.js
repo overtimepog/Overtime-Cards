@@ -150,21 +150,22 @@ function Lobby() {
           } else if (data.type === 'player_joined') {
             const playerId = data.data.player_id;
             // Only show join message if player wasn't already present
-            if (!presentPlayers.has(playerId)) {
-              setPresentPlayers(prev => {
+            setPresentPlayers(prev => {
+              if (!prev.has(playerId)) {
                 const newSet = new Set(prev);
                 newSet.add(playerId);
+                // Add system message to chat only if player wasn't present
+                const joinMessage = {
+                  username: 'System',
+                  message: data.message || `${data.data.username} joined the room`,
+                  isSystem: true,
+                  timestamp: data.timestamp || new Date().toISOString()
+                };
+                setChatMessages(prev => [...prev, joinMessage]);
                 return newSet;
-              });
-              // Add system message to chat
-              const joinMessage = {
-                username: 'System',
-                message: data.message || `${data.data.username} joined the room`,
-                isSystem: true,
-                timestamp: data.timestamp || new Date().toISOString()
-              };
-              setChatMessages(prev => [...prev, joinMessage]);
-            }
+              }
+              return prev;
+            });
             // Update players list with new player
             setPlayers(prev => {
               const filtered = prev.filter(p => p.id !== playerId);
