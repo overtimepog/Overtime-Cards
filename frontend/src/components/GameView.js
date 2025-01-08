@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import {
   DndContext,
@@ -7,91 +7,56 @@ import {
   MouseSensor,
   TouchSensor,
   KeyboardSensor,
-  useDraggable,
-  useDroppable,
   DragOverlay,
-  defaultDropAnimationSideEffects
+  defaultDropAnimationSideEffects,
+  pointerWithin,
+  rectIntersection,
+  getFirstCollision,
 } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
+import { Draggable } from './Draggable';
+import { Droppable } from './Droppable';
 import backDark from '../components/cards/back_dark.png';
-import { Draggable } from '@dnd-kit/core';
-
-// Custom hook for drop zones
-const useDropZone = (type, onDrop, playerId = null) => {
-  const { isOver, setNodeRef } = useDroppable({
-    id: playerId ? `${type}-${playerId}` : type,
-    data: { type, playerId }
-  });
-
-  return { isOver, drop: setNodeRef };
-};
 
 // Custom hook for managing all drop zones
-const useGameDropZones = (gameState, playerId, handleCardDrop) => {
-  // Standard game drop zones
-  const foundation = useDropZone('foundation', handleCardDrop);
-  const corner = useDropZone('corner', handleCardDrop);
-  const meld = useDropZone('meld', handleCardDrop);
-  const discard = useDropZone('discard', handleCardDrop);
-  const center = useDropZone('center', handleCardDrop);
+const useGameDropZones = (gameState, playerId) => {
+  // Create an array of all possible drop zone IDs
+  const dropZoneIds = useMemo(() => {
+    const standardZones = ['foundation', 'corner', 'meld', 'discard', 'center'];
+    const playerZones = gameState?.players 
+      ? Object.keys(gameState.players)
+          .filter(id => id !== playerId)
+          .map(id => `player-${id}`)
+      : [];
+    return [...standardZones, ...playerZones];
+  }, [gameState?.players, playerId]);
 
-  // Predefine all drop zones to ensure consistent hook usage
-  const otherPlayerIds = gameState?.players 
-    ? Object.keys(gameState.players).filter(id => id !== playerId)
-    : [];
-    
-  const playerDropZones = otherPlayerIds.reduce((acc, id) => {
-    acc[id] = useDropZone('player', handleCardDrop, id);
-    return acc;
-  }, {});
-
-  const getDropRef = (type, pid = null) => {
-    if (type === 'player' && pid) {
-      return playerDropZones[pid]?.drop;
-    }
-    const dropRefs = {
-      foundation: foundation.drop,
-      corner: corner.drop,
-      meld: meld.drop,
-      discard: discard.drop,
-      center: center.drop
-    };
-    return dropRefs[type];
-  };
-
-  const getIsOver = (type, pid = null) => {
-    if (type === 'player' && pid) {
-      return playerDropZones[pid]?.isOver;
-    }
-    const isOverStates = {
-      foundation: foundation.isOver,
-      corner: corner.isOver,
-      meld: meld.isOver,
-      discard: discard.isOver,
-      center: center.isOver
-    };
-    return isOverStates[type];
-  };
+  // Create a map of all drop zone data
+  const dropZoneData = useMemo(() => {
+    const data = {};
+    dropZoneIds.forEach(id => {
+      if (id.startsWith('player-')) {
+        const playerId = id.replace('player-', '');
+        data[id] = { type: 'player', playerId };
+      } else {
+        data[id] = { type: id };
+      }
+    });
+    return data;
+  }, [dropZoneIds]);
 
   return {
-    foundation,
-    corner,
-    meld,
-    discard,
-    center,
-    players: playerDropZones,
-    getDropRef,
-    getIsOver
+    dropZoneIds,
+    dropZoneData,
   };
 };
 
 // Card component with drag and drop functionality
-const Card = React.memo(({ card, index, isInHand, onDrop, canDrag = true }) => {
+const Card = React.memo(({ card, index, isInHand, canDrag = true }) => {
   const [isHovered, setIsHovered] = useState(false);
   
   if (!card) return null;
   
-  // Generate the proper image path based on card rank and suit
   const imagePath = card.show_back ? 
     backDark : 
     require(`../components/cards/${card.suit.toLowerCase()}_${card.rank}.png`);
@@ -120,7 +85,7 @@ const Card = React.memo(({ card, index, isInHand, onDrop, canDrag = true }) => {
           borderRadius: '8px',
           boxShadow: isHovered ? '0 8px 16px rgba(0,0,0,0.3)' : '0 2px 4px rgba(0,0,0,0.1)',
           transition: 'all 0.2s ease',
-          pointerEvents: 'none' // Prevent image from interfering with drag
+          pointerEvents: 'none'
         }}
       />
     </div>
@@ -155,29 +120,38 @@ function GameView() {
   const [activeDragData, setActiveDragData] = useState(null);
 
   // Initialize drop zones using the custom hook
-  const dropZones = useGameDropZones(gameState, playerId, handleCardDrop);
+  const { dropZoneIds, dropZoneData } = useGameDropZones(gameState, playerId);
 
   const BASE_URL = process.env.REACT_APP_API_URL || "https://overtime-cards-api.onrender.com/api/v1";
 
   // Setup DnD sensors with proper configuration
   const sensors = useSensors(
     useSensor(MouseSensor, {
-      // Require the mouse to move by 10 pixels before activating
       activationConstraint: {
         distance: 10,
+        tolerance: 5,
       },
     }),
     useSensor(TouchSensor, {
-      // Press delay of 250ms, with tolerance of 5px of movement
       activationConstraint: {
         delay: 250,
         tolerance: 5,
       },
     }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
+    useSensor(KeyboardSensor)
   );
+
+  // Collision detection strategy
+  const collisionDetection = useCallback((args) => {
+    const pointerCollisions = pointerWithin(args);
+    if (pointerCollisions.length > 0) {
+      return pointerCollisions;
+    }
+    
+    // Fall back to rect intersection if no pointer collisions
+    const rectCollisions = rectIntersection(args);
+    return rectCollisions;
+  }, []);
 
   // Handle DnD events
   const handleDragStart = (event) => {
@@ -196,14 +170,10 @@ function GameView() {
     }
 
     const sourceItem = active.data.current;
-    const targetZone = over.data.current;
+    const targetZone = dropZoneData[over.id];
 
-    if (targetZone.type) {
-      // Dropping on a game zone (foundation, corner, etc.)
-      handleCardDrop(sourceItem, { pileType: targetZone.type, playerId: targetZone.playerId });
-    } else if (targetZone.card) {
-      // Dropping on another card
-      handleCardDrop(sourceItem, { card: targetZone.card, index: targetZone.index });
+    if (targetZone) {
+      handleCardDrop(sourceItem, targetZone);
     }
 
     setActiveId(null);
@@ -223,6 +193,19 @@ function GameView() {
         },
       },
     }),
+  };
+
+  const renderDropZone = (id, children, style = {}) => {
+    return (
+      <Droppable
+        id={id}
+        data={dropZoneData[id]}
+        style={style}
+        ariaLabel={`${dropZoneData[id].type} drop zone`}
+      >
+        {children}
+      </Droppable>
+    );
   };
 
   const handleLeaveGame = async () => {
@@ -1724,14 +1707,20 @@ function GameView() {
   return (
     <DndContext
       sensors={sensors}
+      collisionDetection={collisionDetection}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
+      measuring={{
+        droppable: {
+          strategy: MeasuringStrategy.Always
+        }
+      }}
     >
       <div className="game-view" style={{
         position: 'relative',
         width: '100%',
-        backgroundColor: '#2c5530', // Poker table green
+        backgroundColor: '#2c5530',
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
@@ -1775,7 +1764,7 @@ function GameView() {
           onClick={handleLeaveGame}
           className="leave-game"
           style={{
-            position: 'fixed', // Changed to fixed to ensure it stays visible
+            position: 'fixed',
             top: '20px',
             left: '20px',
             padding: '10px 20px',
@@ -1784,8 +1773,8 @@ function GameView() {
             border: 'none',
             borderRadius: '5px',
             cursor: 'pointer',
-            zIndex: 1000, // Ensure it's always on top
-            boxShadow: '0 2px 4px rgba(0,0,0,0.2)' // Added shadow for better visibility
+            zIndex: 1000,
+            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
           }}
         >
           Leave Game
