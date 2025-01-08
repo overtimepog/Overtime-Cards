@@ -13,9 +13,6 @@ function Lobby() {
   const [chatMessages, setChatMessages] = useState([]);
   const chatEndRef = useRef(null);
   const { playerId, username, isHost } = location.state || {};
-  // Track player presence to prevent duplicate join messages
-  const [presentPlayers, setPresentPlayers] = useState(new Set());
-
   const BASE_URL = process.env.REACT_APP_API_URL || "https://overtime-cards-api.onrender.com/api/v1";
 
   // Auto scroll chat to bottom when new messages arrive
@@ -132,8 +129,6 @@ function Lobby() {
                 ...player,
                 isHost: player.isHost
               })));
-              // Initialize present players from game state
-              setPresentPlayers(new Set(data.players.map(p => p.id)));
             }
             // Handle initial chat history if provided
             if (data.chat_history) {
@@ -149,23 +144,14 @@ function Lobby() {
             });
           } else if (data.type === 'player_joined') {
             const playerId = data.data.player_id;
-            // Only show join message if player wasn't already present
-            setPresentPlayers(prev => {
-              if (!prev.has(playerId)) {
-                const newSet = new Set(prev);
-                newSet.add(playerId);
-                // Add system message to chat only if player wasn't present
-                const joinMessage = {
-                  username: 'System',
-                  message: data.message || `${data.data.username} joined the room`,
-                  isSystem: true,
-                  timestamp: data.timestamp || new Date().toISOString()
-                };
-                setChatMessages(prev => [...prev, joinMessage]);
-                return newSet;
-              }
-              return prev;
-            });
+            // Add system message about player joining
+            const joinMessage = {
+              username: 'System',
+              message: data.message || `${data.data.username} joined the room`,
+              isSystem: true,
+              timestamp: data.timestamp || new Date().toISOString()
+            };
+            setChatMessages(prev => [...prev, joinMessage]);
             // Update players list with new player
             setPlayers(prev => {
               const filtered = prev.filter(p => p.id !== playerId);
@@ -176,12 +162,6 @@ function Lobby() {
               }];
             });
           } else if (data.type === 'player_disconnect') {
-            // Remove player from present players set
-            setPresentPlayers(prev => {
-              const newSet = new Set(prev);
-              newSet.delete(data.player_id);
-              return newSet;
-            });
             // Remove disconnected player from the list
             setPlayers(prev => prev.filter(p => p.id !== data.player_id));
             // Add system message about player leaving
