@@ -245,7 +245,7 @@ function Lobby() {
         websocket.close();
       }
     };
-  }, [roomCode, playerId, username, navigate, isHost]); // Remove presentPlayers from dependencies
+  }, [roomCode, playerId, username, navigate, isHost, location.state]);
 
   const handleStartGame = async () => {
     try {
