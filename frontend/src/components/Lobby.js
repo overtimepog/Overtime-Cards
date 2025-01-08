@@ -293,6 +293,50 @@ function Lobby() {
     return playerCount >= gameConfig.minPlayers && playerCount <= gameConfig.maxPlayers;
   };
 
+  const handleLeaveRoom = async () => {
+    try {
+      // Send leave_room message through WebSocket first
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ 
+          type: 'leave_room',
+          player_id: playerId,
+          username: username
+        }));
+        
+        // Give the WebSocket message time to propagate
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      // Call leave room API endpoint
+      const response = await fetch(`${BASE_URL}/rooms/${roomCode}/leave`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Origin': window.location.origin
+        },
+        body: JSON.stringify({ 
+          username,
+          player_id: playerId 
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to leave room');
+      }
+    } catch (err) {
+      console.error('Error leaving room:', err);
+    } finally {
+      // Close WebSocket connection
+      if (ws) {
+        ws.close();
+      }
+      // Navigate away
+      navigate('/');
+    }
+  };
+
   return (
     <div className="lobby" style={{
       padding: '20px',
@@ -302,35 +346,7 @@ function Lobby() {
       <div className="lobby-header">
         <h2>Game Lobby</h2>
         <button 
-          onClick={async () => {
-            try {
-              // Send leave_room message through WebSocket
-              if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ type: 'leave_room' }));
-              }
-              
-              // Call leave room API endpoint
-              const response = await fetch(`${BASE_URL}/rooms/${roomCode}/leave`, {
-                method: 'POST',
-                credentials: 'include',
-                headers: { 
-                  'Content-Type': 'application/json',
-                  'Origin': window.location.origin
-                },
-                body: JSON.stringify({ username })
-              });
-              
-              if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'Failed to leave room');
-              }
-            } catch (err) {
-              console.error('Error leaving room:', err);
-            } finally {
-              // Navigate away regardless of API call result
-              navigate('/');
-            }
-          }} 
+          onClick={handleLeaveRoom} 
           className="button back-button"
         >
           Leave Room

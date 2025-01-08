@@ -1801,59 +1801,83 @@ async def process_websocket_message(websocket: WebSocket, data: dict, room_code:
         elif message_type == 'leave_room':
             # Handle explicit leave room request
             if player:
-                with get_db() as conn:
-                    # Clear room association
-                    conn.execute(
-                        """
-                        UPDATE players 
-                        SET room_code = NULL 
-                        WHERE id = ?
-                        """,
-                        (player_id,)
-                    )
-                    
-                    # If player was host, check for remaining active players
-                    if player['is_host']:
+                try:
+                    with get_db() as conn:
+                        # Get player info before removing them
                         cursor = conn.execute(
-                            """
-                            SELECT id, username
-                            FROM players
-                            WHERE room_code = ? AND id != ? AND last_activity > ?
-                            ORDER BY last_activity DESC
-                            LIMIT 1
-                            """,
-                            (room_code, player_id, (datetime.now(UTC) - timedelta(minutes=2)).isoformat())
+                            "SELECT username, room_code FROM players WHERE id = ?",
+                            (player_id,)
                         )
-                        new_host = cursor.fetchone()
+                        player_info = cursor.fetchone()
                         
-                        if new_host:
-                            # Assign new host
+                        if player_info:
+                            room_code = player_info['room_code']
+                            username = player_info['username']
+                            
+                            # Clear room association
                             conn.execute(
-                                "UPDATE rooms SET host_id = ? WHERE code = ?",
-                                (new_host['id'], room_code)
+                                "UPDATE players SET room_code = NULL WHERE id = ?",
+                                (player_id,)
                             )
                             
-                            # Add system message about new host
-                            host_message = {
-                                "type": "host_update",
-                                "username": "System",
-                                "message": f"{new_host['username']} is now the host",
-                                "isSystem": True,
-                                "timestamp": datetime.now(UTC).isoformat(),
-                                "new_host_id": new_host['id'],
-                                "new_host_name": new_host['username']
+                            # Check if player was host
+                            cursor = conn.execute(
+                                "SELECT host_id FROM rooms WHERE code = ?",
+                                (room_code,)
+                            )
+                            room_info = cursor.fetchone()
+                            
+                            if room_info and int(room_info['host_id']) == int(player_id):
+                                # Find new host among remaining active players
+                                cursor = conn.execute(
+                                    """
+                                    SELECT id, username
+                                    FROM players
+                                    WHERE room_code = ? AND id != ? AND last_activity > ?
+                                    ORDER BY last_activity DESC
+                                    LIMIT 1
+                                    """,
+                                    (room_code, player_id, (datetime.now(UTC) - timedelta(minutes=2)).isoformat())
+                                )
+                                new_host = cursor.fetchone()
+                                
+                                if new_host:
+                                    # Assign new host
+                                    conn.execute(
+                                        "UPDATE rooms SET host_id = ? WHERE code = ?",
+                                        (new_host['id'], room_code)
+                                    )
+                                    
+                                    # Broadcast host update
+                                    host_update = {
+                                        "type": "host_update",
+                                        "new_host_id": str(new_host['id']),
+                                        "new_host_name": new_host['username'],
+                                        "message": f"{new_host['username']} is now the host"
+                                    }
+                                    await manager.broadcast_to_room(host_update, room_code)
+                                
+                            # Broadcast player disconnect message
+                            disconnect_message = {
+                                "type": "player_disconnect",
+                                "player_id": str(player_id),
+                                "player_name": username,
+                                "message": f"{username} left the room"
                             }
-                            await manager.broadcast_to_room(host_message, room_code)
-                        else:
-                            # No active players left, delete the room
-                            conn.execute("DELETE FROM game_state WHERE room_code = ?", (room_code,))
-                            conn.execute("DELETE FROM rooms WHERE code = ?", (room_code,))
-                    
-                    conn.commit()
-                    
-                    # Disconnect WebSocket
+                            await manager.broadcast_to_room(disconnect_message, room_code)
+                            
+                        conn.commit()
+                        
+                    # Finally disconnect the WebSocket
                     await manager.disconnect(websocket, room_code, player_id)
-            
+                    
+                except Exception as e:
+                    logger.error(f"Error processing leave_room: {e}")
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Error leaving room"
+                    })
+
         else:
             logger.warning(f"Unknown message type: {message_type} from {player_info}")
             await websocket.send_json({
