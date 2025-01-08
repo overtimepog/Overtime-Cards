@@ -151,7 +151,11 @@ function Lobby() {
             const playerId = data.data.player_id;
             // Only show join message if player wasn't already present
             if (!presentPlayers.has(playerId)) {
-              setPresentPlayers(prev => new Set([...prev, playerId]));
+              setPresentPlayers(prev => {
+                const newSet = new Set(prev);
+                newSet.add(playerId);
+                return newSet;
+              });
               // Add system message to chat
               const joinMessage = {
                 username: 'System',
