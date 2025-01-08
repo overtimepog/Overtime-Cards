@@ -12,6 +12,7 @@ import {
   pointerWithin,
   rectIntersection,
   getFirstCollision,
+  MeasuringStrategy,
 } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Draggable } from './Draggable';
@@ -498,53 +499,56 @@ function GameView() {
     const hand = player.hand || [];
     const handToRender = isCurrentPlayer ? hand : hand.map(() => ({ show_back: true }));
     
-    const dropRef = !isCurrentPlayer ? dropZones.getDropRef('player', player.id) : null;
-    const isDropOver = !isCurrentPlayer ? dropZones.getIsOver('player', player.id) : false;
-    
-    return (
-      <div 
-        ref={dropRef}
-        style={{
-          ...position,
+    const handStyle = {
+      ...position,
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: '10px',
+      minWidth: '200px',
+      maxWidth: '400px',
+      overflow: 'visible',
+      zIndex: 1,
+      borderRadius: '10px',
+      transition: 'border-color 0.2s ease'
+    };
+
+    const content = (
+      <div style={{
+        backgroundColor: isCurrentPlayer ? 'rgba(255,255,255,0.1)' : 'transparent',
+        borderRadius: '10px',
+        padding: '10px',
+        position: 'relative'
+      }}>
+        <div style={{
           display: 'flex',
           justifyContent: 'center',
-          alignItems: 'center',
-          padding: '10px',
-          minWidth: '200px',
-          maxWidth: '400px',
-          overflow: 'visible',
-          zIndex: 1,
-          border: isDropOver ? '2px solid gold' : '2px solid transparent',
-          borderRadius: '10px',
-          transition: 'border-color 0.2s ease'
-        }}
-      >
-        <div style={{
-          backgroundColor: isCurrentPlayer ? 'rgba(255,255,255,0.1)' : 'transparent',
-          borderRadius: '10px',
-          padding: '10px',
-          position: 'relative'
+          paddingLeft: '50px',
         }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            paddingLeft: '50px',
-          }}>
-            {handToRender.map((card, index) => renderCard(card, index, isCurrentPlayer))}
-          </div>
-          <div style={{
-            textAlign: 'center',
-            color: 'white',
-            marginTop: '10px',
-            fontSize: '0.9em',
-            textShadow: '1px 1px 2px rgba(0,0,0,0.5)'
-          }}>
-            {player.name} {isCurrentPlayer ? '(You)' : ''}
-            {player.is_host && ' (Host)'}
-          </div>
+          {handToRender.map((card, index) => (
+            <Card 
+              key={index}
+              card={card}
+              index={index}
+              isInHand={isCurrentPlayer}
+              canDrag={isCurrentPlayer && !card.show_back}
+            />
+          ))}
+        </div>
+        <div style={{
+          textAlign: 'center',
+          color: 'white',
+          marginTop: '10px',
+          fontSize: '0.9em',
+          textShadow: '1px 1px 2px rgba(0,0,0,0.5)'
+        }}>
+          {player.name} {isCurrentPlayer ? '(You)' : ''}
+          {player.is_host && ' (Host)'}
         </div>
       </div>
     );
+
+    return isCurrentPlayer ? content : renderDropZone(`player-${player.id}`, content, handStyle);
   };
 
   const calculatePlayerPosition = (index, totalPlayers, radius = 250) => { // Reduced radius
@@ -584,7 +588,91 @@ function GameView() {
   const renderGameCenter = () => {
     if (!gameState) return null;
 
+    const renderDroppablePile = (type, children, style = {}) => {
+      return renderDropZone(type, children, {
+        width: '80px',
+        height: '120px',
+        border: '2px dashed rgba(255,255,255,0.3)',
+        borderRadius: '8px',
+        backgroundColor: 'transparent',
+        ...style
+      });
+    };
+
     switch (gameType) {
+      case 'kings_corner':
+        return (
+          <div className="kings-corner-container" style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '400px',
+            maxHeight: '40vh',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '20px',
+            justifyContent: 'center'
+          }}>
+            {/* Foundation piles (center) */}
+            {[...Array(4)].map((_, index) => {
+              const pile = gameState.piles?.[`foundation_${index}`] || [];
+              const angle = index * 90;
+              return (
+                <div key={`foundation_${index}`} style={{
+                  position: 'absolute',
+                  left: '50%',
+                  top: '50%',
+                  transform: `translate(-50%, -50%) translate(${Math.cos(angle * Math.PI / 180) * 60}px, ${Math.sin(angle * Math.PI / 180) * 60}px)`,
+                  cursor: isCurrentPlayer ? 'pointer' : 'default'
+                }}>
+                  {pile.length > 0 ? (
+                    renderDroppablePile('foundation', pile.map((card, cardIndex) => (
+                      <div key={cardIndex} style={{
+                        position: 'absolute',
+                        transform: `translateY(${cardIndex * 2}px)`
+                      }}>
+                        <Card card={card} index={cardIndex} canDrag={isCurrentPlayer} />
+                      </div>
+                    )))
+                  ) : (
+                    renderDroppablePile('foundation')
+                  )}
+                </div>
+              );
+            })}
+            
+            {/* Corner piles */}
+            {[...Array(4)].map((_, index) => {
+              const pile = gameState.piles?.[`corner_${index}`] || [];
+              const angle = index * 90 + 45;
+              return (
+                <div key={`corner_${index}`} style={{
+                  position: 'absolute',
+                  left: '50%',
+                  top: '50%',
+                  transform: `translate(-50%, -50%) translate(${Math.cos(angle * Math.PI / 180) * 120}px, ${Math.sin(angle * Math.PI / 180) * 120}px)`,
+                  cursor: isCurrentPlayer ? 'pointer' : 'default'
+                }}>
+                  {pile.length > 0 ? (
+                    renderDroppablePile('corner', pile.map((card, cardIndex) => (
+                      <div key={cardIndex} style={{
+                        position: 'absolute',
+                        transform: `translateY(${cardIndex * 2}px)`
+                      }}>
+                        <Card card={card} index={cardIndex} canDrag={isCurrentPlayer} />
+                      </div>
+                    )))
+                  ) : (
+                    renderDroppablePile('corner')
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        );
+
       case 'snap':
         return (
           <div className="snap-center" style={{
@@ -600,67 +688,27 @@ function GameView() {
             gap: '20px',
             justifyContent: 'center'
           }}>
-            {/* Center pile */}
-            <div 
-              className="center-pile" 
-              ref={dropZones.getDropRef('center')}
-              style={{
+            {renderDropZone('center', 
+              gameState.center_pile?.slice(-1).map((card, index) => (
+                <div key={index} style={{
+                  position: 'absolute',
+                  transform: `rotate(${Math.random() * 10 - 5}deg)`
+                }}>
+                  <Card card={card} index={index} canDrag={false} />
+                </div>
+              )),
+              {
                 position: 'relative',
                 width: '100px',
                 height: '140px',
-                backgroundColor: dropZones.getIsOver('center') ? 'rgba(255,255,255,0.1)' : 'transparent',
+                backgroundColor: 'transparent',
                 borderRadius: '8px',
                 border: '2px dashed rgba(255,255,255,0.3)',
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center'
-              }}
-            >
-              {gameState.center_pile?.slice(-1).map((card, index) => (
-                <div key={index} style={{
-                  position: 'absolute',
-                  transform: `rotate(${Math.random() * 10 - 5}deg)`
-                }}>
-                  {renderCard(card, index, false, {
-                    pileType: 'center'
-                  })}
-                </div>
-              ))}
-            </div>
-
-            {/* Game info */}
-            <div style={{
-              color: 'white',
-              textAlign: 'center',
-              fontSize: '1.2em'
-            }}>
-              {gameState.last_action && (
-                <div>{gameState.players[gameState.last_action.player]?.name}'s turn</div>
-              )}
-            </div>
-
-            {/* Snap button */}
-            <button 
-              onClick={() => handleGameAction('snap')}
-              className="button snap-button"
-              style={{
-                backgroundColor: '#f44336',
-                color: 'white',
-                border: 'none',
-                padding: '10px 20px',
-                borderRadius: '5px',
-                fontWeight: 'bold',
-                fontSize: '1.2em',
-                cursor: 'pointer',
-                transition: 'transform 0.1s',
-                transform: 'scale(1)',
-                ':active': {
-                  transform: 'scale(0.95)'
-                }
-              }}
-            >
-              SNAP!
-            </button>
+              }
+            )}
           </div>
         );
 
@@ -774,121 +822,6 @@ function GameView() {
           </div>
         );
 
-      case 'kings_corner':
-        return (
-          <div className="kings-corner-container" style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '400px',
-            maxHeight: '40vh',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '20px',
-            justifyContent: 'center'
-          }}>
-            {/* Foundation piles (center) */}
-            {[...Array(4)].map((_, index) => {
-              const pile = gameState.piles?.[`foundation_${index}`] || [];
-              const angle = index * 90; // 4 piles at 90-degree intervals
-              return (
-                <div key={`foundation_${index}`} style={{
-                  position: 'absolute',
-                  left: '50%',
-                  top: '50%',
-                  transform: `translate(-50%, -50%) translate(${Math.cos(angle * Math.PI / 180) * 60}px, ${Math.sin(angle * Math.PI / 180) * 60}px)`,
-                  cursor: isCurrentPlayer ? 'pointer' : 'default'
-                }}>
-                  {pile.length > 0 ? (
-                    pile.map((card, cardIndex) => (
-                      <div key={cardIndex} style={{
-                        position: 'absolute',
-                        transform: `translateY(${cardIndex * 2}px)`
-                      }}>
-                        {renderCard(card, cardIndex, false, {
-                          pileType: `foundation_${index}`,
-                          pileIndex: index
-                        })}
-                      </div>
-                    ))
-                  ) : (
-                    <div 
-                      className="empty-pile" 
-                      ref={dropZones.getDropRef('foundation')}
-                      style={{
-                        width: '80px',
-                        height: '120px',
-                        border: '2px dashed rgba(255,255,255,0.3)',
-                        borderRadius: '8px',
-                        backgroundColor: dropZones.getIsOver('foundation') ? 'rgba(255,255,255,0.1)' : 'transparent'
-                      }}
-                    />
-                  )}
-                </div>
-              );
-            })}
-            
-            {/* Corner piles */}
-            {[...Array(4)].map((_, index) => {
-              const pile = gameState.piles?.[`corner_${index}`] || [];
-              const angle = index * 90 + 45; // 4 piles at corners (45° offset)
-              return (
-                <div key={`corner_${index}`} style={{
-                  position: 'absolute',
-                  left: '50%',
-                  top: '50%',
-                  transform: `translate(-50%, -50%) translate(${Math.cos(angle * Math.PI / 180) * 120}px, ${Math.sin(angle * Math.PI / 180) * 120}px)`,
-                  cursor: isCurrentPlayer ? 'pointer' : 'default'
-                }}>
-                  {pile.length > 0 ? (
-                    pile.map((card, cardIndex) => (
-                      <div key={cardIndex} style={{
-                        position: 'absolute',
-                        transform: `translateY(${cardIndex * 2}px)`
-                      }}>
-                        {renderCard(card, cardIndex, false, {
-                          pileType: `corner_${index}`,
-                          pileIndex: index
-                        })}
-                      </div>
-                    ))
-                  ) : (
-                    <div 
-                      className="empty-pile"
-                      ref={dropZones.getDropRef('corner')}
-                      style={{
-                        width: '80px',
-                        height: '120px',
-                        border: '2px dashed rgba(255,255,255,0.3)',
-                        borderRadius: '8px',
-                        backgroundColor: dropZones.getIsOver('corner') ? 'rgba(255,255,255,0.1)' : 'transparent'
-                      }}
-                    />
-                  )}
-                </div>
-              );
-            })}
-
-            {/* Draw pile */}
-            <div className="draw-pile" style={{
-              position: 'absolute',
-              left: '50%',
-              top: '50%',
-              transform: 'translate(-50%, -50%)',
-              cursor: isCurrentPlayer ? 'pointer' : 'default'
-            }}>
-              {gameState.deck?.cards_remaining > 0 && renderCard({
-                show_back: true,
-                image_back: '/public/cards/back_dark.png'
-              }, 0, false, {
-                canDrag: false
-              })}
-            </div>
-          </div>
-        );
-
       case 'scat':
         return (
           <div className="scat-center" style={{
@@ -904,22 +837,6 @@ function GameView() {
             gap: '20px',
             justifyContent: 'center'
           }}>
-            {/* Game info (current round, knocked status) */}
-            <div className="game-info" style={{
-              color: 'white',
-              textAlign: 'center',
-              fontSize: '1.2em'
-            }}>
-              {gameState.knocked_player && (
-                <div style={{ color: '#FFD700' }}>
-                  {gameState.players[gameState.knocked_player]?.name} has knocked!
-                </div>
-              )}
-              {gameState.round_number && (
-                <div>Round {gameState.round_number}</div>
-              )}
-            </div>
-
             {/* Draw and Discard piles */}
             <div className="card-piles" style={{
               display: 'flex',
@@ -937,46 +854,16 @@ function GameView() {
                   transform: isCurrentPlayer ? 'scale(1.05)' : 'scale(1)',
                 }}
               >
-                {gameState.deck?.cards_remaining > 0 && renderCard({
-                  show_back: true,
-                  image_back: '/public/cards/back_dark.png'
-                }, 0, false, {
-                  canDrag: false
-                })}
-                <div style={{
-                  position: 'absolute',
-                  bottom: '-25px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  color: 'white',
-                  fontSize: '0.8em',
-                  whiteSpace: 'nowrap'
-                }}>
-                  Draw ({gameState.deck?.cards_remaining})
-                </div>
-              </div>
-
-              {/* Discard pile */}
-              <div 
-                className="discard-pile"
-                ref={dropZones.getDropRef('discard')}
-                style={{
-                  position: 'relative',
-                  cursor: isCurrentPlayer ? 'pointer' : 'default',
-                  transition: 'transform 0.2s',
-                  transform: isCurrentPlayer ? 'scale(1.05)' : 'scale(1)',
-                  backgroundColor: dropZones.getIsOver('discard') ? 'rgba(255,255,255,0.1)' : 'transparent',
-                  borderRadius: '8px',
-                  padding: '4px'
-                }}
-              >
-                {gameState.discard_pile?.slice(-1).map((card, index) => (
-                  <div key={index}>
-                    {renderCard(card, index, false, {
-                      pileType: 'discard'
-                    })}
-                  </div>
-                ))}
+                {gameState.deck?.cards_remaining > 0 && (
+                  <Card 
+                    card={{
+                      show_back: true,
+                      image_back: '/public/cards/back_dark.png'
+                    }}
+                    index={0}
+                    canDrag={false}
+                  />
+                )}
                 <div style={{
                   position: 'absolute',
                   bottom: '-25px',
@@ -985,23 +872,25 @@ function GameView() {
                   color: 'white',
                   fontSize: '0.8em'
                 }}>
-                  Discard
+                  Draw ({gameState.deck?.cards_remaining})
                 </div>
               </div>
-            </div>
 
-            {/* Current player's score (if available) */}
-            {gameState.players[playerId]?.current_score && (
-              <div style={{
-                color: 'white',
-                marginTop: '20px',
-                padding: '5px 15px',
-                backgroundColor: 'rgba(0,0,0,0.3)',
-                borderRadius: '10px'
-              }}>
-                Current Score: {gameState.players[playerId].current_score}
-              </div>
-            )}
+              {/* Discard pile */}
+              {renderDropZone('discard',
+                gameState.discard_pile?.slice(-1).map((card, index) => (
+                  <Card key={index} card={card} index={index} canDrag={false} />
+                )),
+                {
+                  position: 'relative',
+                  cursor: isCurrentPlayer ? 'pointer' : 'default',
+                  transition: 'transform 0.2s',
+                  transform: isCurrentPlayer ? 'scale(1.05)' : 'scale(1)',
+                  borderRadius: '8px',
+                  padding: '4px'
+                }
+              )}
+            </div>
           </div>
         );
 
@@ -1032,102 +921,28 @@ function GameView() {
               borderRadius: '10px'
             }}>
               {gameState.melds?.map((meld, meldIndex) => (
-                <div key={meldIndex} className="meld" style={{
-                  display: 'flex',
-                  gap: '5px'
-                }}>
-                  {meld.map((card, cardIndex) => (
+                renderDropZone(`meld-${meldIndex}`,
+                  meld.map((card, cardIndex) => (
                     <div key={cardIndex} style={{
                       transform: 'translateX(-30px)',
                       marginLeft: cardIndex === 0 ? '0' : '-30px'
                     }}>
-                      {renderCard(card, cardIndex, false, {
-                        meldIndex,
-                        cardIndex
-                      })}
+                      <Card card={card} index={cardIndex} canDrag={isCurrentPlayer} />
                     </div>
-                  ))}
-                </div>
+                  )),
+                  {
+                    display: 'flex',
+                    gap: '5px'
+                  }
+                )
               ))}
               {/* Empty meld drop zone */}
-              {isCurrentPlayer && (
-                <div 
-                  className="empty-meld"
-                  ref={dropZones.getDropRef('meld')}
-                  style={{
-                    width: '120px',
-                    height: '150px',
-                    border: '2px dashed rgba(255,255,255,0.3)',
-                    borderRadius: '10px',
-                    backgroundColor: dropZones.getIsOver('meld') ? 'rgba(255,255,255,0.1)' : 'transparent'
-                  }}
-                />
-              )}
-            </div>
-
-            {/* Draw and Discard piles */}
-            <div className="card-piles" style={{
-              display: 'flex',
-              gap: '40px',
-              alignItems: 'center'
-            }}>
-              {/* Draw pile */}
-              <div 
-                className="draw-pile"
-                onClick={() => isCurrentPlayer && handleGameAction('draw_card', { source: 'deck' })}
-                style={{
-                  position: 'relative',
-                  cursor: isCurrentPlayer ? 'pointer' : 'default'
-                }}
-              >
-                {gameState.deck?.cards_remaining > 0 && renderCard({
-                  show_back: true,
-                  image_back: '/public/cards/back_dark.png'
-                }, 0, false, {
-                  canDrag: false
-                })}
-                <div style={{
-                  position: 'absolute',
-                  bottom: '-25px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  color: 'white',
-                  fontSize: '0.8em'
-                }}>
-                  Draw ({gameState.deck?.cards_remaining})
-                </div>
-              </div>
-
-              {/* Discard pile */}
-              <div 
-                className="discard-pile"
-                ref={dropZones.getDropRef('discard')}
-                style={{
-                  position: 'relative',
-                  cursor: isCurrentPlayer ? 'pointer' : 'default',
-                  backgroundColor: dropZones.getIsOver('discard') ? 'rgba(255,255,255,0.1)' : 'transparent',
-                  borderRadius: '8px',
-                  padding: '4px'
-                }}
-              >
-                {gameState.discard_pile?.slice(-1).map((card, index) => (
-                  <div key={index}>
-                    {renderCard(card, index, false, {
-                      pileType: 'discard'
-                    })}
-                  </div>
-                ))}
-                <div style={{
-                  position: 'absolute',
-                  bottom: '-25px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  color: 'white',
-                  fontSize: '0.8em'
-                }}>
-                  Discard
-                </div>
-              </div>
+              {isCurrentPlayer && renderDropZone('meld', null, {
+                width: '120px',
+                height: '150px',
+                border: '2px dashed rgba(255,255,255,0.3)',
+                borderRadius: '10px'
+              })}
             </div>
           </div>
         );
