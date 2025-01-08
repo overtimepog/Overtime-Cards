@@ -1,20 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
-import { DndProvider, useDrag, useDrop } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend';
+import {
+  DndContext,
+  useSensor,
+  useSensors,
+  MouseSensor,
+  TouchSensor,
+  KeyboardSensor,
+  useDraggable,
+  useDroppable
+} from '@dnd-kit/core';
 import backDark from '../components/cards/back_dark.png';
 
 // Custom hook for drop zones
 const useDropZone = (type, onDrop, playerId = null) => {
-  const [{ isOver }, drop] = useDrop(() => ({
-    accept: 'CARD',
-    drop: (item) => onDrop && onDrop(item, { pileType: type, playerId }),
-    collect: (monitor) => ({
-      isOver: monitor.isOver(),
-    }),
-  }));
+  const { isOver, setNodeRef } = useDroppable({
+    id: playerId ? `${type}-${playerId}` : type,
+    data: { type, playerId }
+  });
 
-  return { isOver, drop };
+  return { isOver, drop: setNodeRef };
 };
 
 // Custom hook for managing all drop zones
@@ -80,22 +85,11 @@ const useGameDropZones = (gameState, playerId, handleCardDrop) => {
 const Card = React.memo(({ card, index, isInHand, onDrop, canDrag = true }) => {
   const [isHovered, setIsHovered] = useState(false);
   
-  const [{ isDragging }, drag] = useDrag(() => ({
-    type: 'CARD',
-    item: { card, index },
-    canDrag: canDrag && !card.show_back,
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-  }));
-
-  const [{ isOver }, drop] = useDrop(() => ({
-    accept: 'CARD',
-    drop: (item) => onDrop && onDrop(item, { card, index }),
-    collect: (monitor) => ({
-      isOver: monitor.isOver(),
-    }),
-  }));
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `card-${index}`,
+    data: { card, index },
+    disabled: !canDrag || card.show_back
+  });
   
   if (!card) return null;
   
@@ -106,9 +100,9 @@ const Card = React.memo(({ card, index, isInHand, onDrop, canDrag = true }) => {
 
   return (
     <div
-      ref={(node) => {
-        drag(drop(node));
-      }}
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
       className="card-container"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -121,7 +115,7 @@ const Card = React.memo(({ card, index, isInHand, onDrop, canDrag = true }) => {
         transform: isHovered ? 'translateY(-20px) translateX(25px) scale(1.1)' : 'none',
         cursor: (canDrag && !card.show_back) ? 'grab' : 'default',
         opacity: isDragging ? 0.5 : 1,
-        border: isOver ? '2px solid gold' : '2px solid transparent'
+        touchAction: 'none' // Required for touch devices
       }}
     >
       <img 
@@ -133,7 +127,8 @@ const Card = React.memo(({ card, index, isInHand, onDrop, canDrag = true }) => {
           height: 'auto',
           borderRadius: '8px',
           boxShadow: isHovered ? '0 8px 16px rgba(0,0,0,0.3)' : '0 2px 4px rgba(0,0,0,0.1)',
-          transition: 'all 0.2s ease'
+          transition: 'all 0.2s ease',
+          pointerEvents: 'none' // Prevent image from interfering with drag
         }}
       />
     </div>
@@ -156,6 +151,31 @@ function GameView() {
   const dropZones = useGameDropZones(gameState, playerId, handleCardDrop);
 
   const BASE_URL = process.env.REACT_APP_API_URL || "https://overtime-cards-api.onrender.com/api/v1";
+
+  // Setup DnD sensors
+  const sensors = useSensors(
+    useSensor(MouseSensor),
+    useSensor(TouchSensor),
+    useSensor(KeyboardSensor)
+  );
+
+  // Handle DnD events
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    
+    if (!active || !over) return;
+
+    const sourceItem = active.data.current;
+    const targetZone = over.data.current;
+
+    if (targetZone.type) {
+      // Dropping on a game zone (foundation, corner, etc.)
+      handleCardDrop(sourceItem, { pileType: targetZone.type, playerId: targetZone.playerId });
+    } else if (targetZone.card) {
+      // Dropping on another card
+      handleCardDrop(sourceItem, { card: targetZone.card, index: targetZone.index });
+    }
+  };
 
   const handleLeaveGame = async () => {
     try {
@@ -1654,7 +1674,10 @@ function GameView() {
   };
 
   return (
-    <DndProvider backend={HTML5Backend}>
+    <DndContext
+      sensors={sensors}
+      onDragEnd={handleDragEnd}
+    >
       <div className="game-view" style={{
         position: 'relative',
         width: '100%',
@@ -1718,7 +1741,7 @@ function GameView() {
           Leave Game
         </button>
       </div>
-    </DndProvider>
+    </DndContext>
   );
 }
 
