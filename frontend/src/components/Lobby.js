@@ -175,24 +175,27 @@ function Lobby() {
           } else if (data.type === 'host_update') {
             // Update host status for all players
             setPlayers(prev => prev.map(player => ({
-              ...player,
-              isHost: player.id === data.new_host_id
+                ...player,
+                isHost: String(player.id) === String(data.new_host_id)
             })));
             
             // If I'm the new host, update local state
-            if (parseInt(data.new_host_id) === parseInt(playerId)) {
-              window.location.state = {
-                ...window.location.state,
-                isHost: true
-              };
+            if (String(data.new_host_id) === String(playerId)) {
+                // Update location state
+                const newState = {
+                    ...location.state,
+                    isHost: true
+                };
+                // Update navigation state
+                navigate(`/lobby/${roomCode}`, { state: newState, replace: true });
             }
             
             // Add system message about new host
             const hostUpdateMessage = {
-              username: 'System',
-              message: data.message || `${data.new_host_name} is now the host`,
-              isSystem: true,
-              timestamp: data.timestamp || new Date().toISOString()
+                username: 'System',
+                message: data.message || `${data.new_host_name} is now the host`,
+                isSystem: true,
+                timestamp: data.timestamp || new Date().toISOString()
             };
             setChatMessages(prev => [...prev, hostUpdateMessage]);
           } else if (data.type === 'chat') {

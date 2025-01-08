@@ -569,6 +569,8 @@ class ConnectionManager:
 
     async def disconnect(self, websocket: WebSocket, room_code: str, player_id: int):
         try:
+            if websocket.client_state != WebSocketState.DISCONNECTED:
+                await websocket.close()
             if room_code in self.active_connections:
                 if player_id in self.active_connections[room_code]:
                     try:
@@ -1805,7 +1807,7 @@ async def process_websocket_message(websocket: WebSocket, data: dict, room_code:
                     with get_db() as conn:
                         # Get player info before removing them
                         cursor = conn.execute(
-                            "SELECT username, room_code FROM players WHERE id = ?",
+                            "SELECT username, room_code, (SELECT host_id FROM rooms WHERE code = room_code) as host_id FROM players WHERE id = ?",
                             (player_id,)
                         )
                         player_info = cursor.fetchone()
@@ -1813,22 +1815,10 @@ async def process_websocket_message(websocket: WebSocket, data: dict, room_code:
                         if player_info:
                             room_code = player_info['room_code']
                             username = player_info['username']
+                            was_host = int(player_info['host_id']) == int(player_id)
                             
-                            # Clear room association
-                            conn.execute(
-                                "UPDATE players SET room_code = NULL WHERE id = ?",
-                                (player_id,)
-                            )
-                            
-                            # Check if player was host
-                            cursor = conn.execute(
-                                "SELECT host_id FROM rooms WHERE code = ?",
-                                (room_code,)
-                            )
-                            room_info = cursor.fetchone()
-                            
-                            if room_info and int(room_info['host_id']) == int(player_id):
-                                # Find new host among remaining active players
+                            # If player was host, assign new host before removing them
+                            if was_host:
                                 cursor = conn.execute(
                                     """
                                     SELECT id, username
@@ -1848,7 +1838,7 @@ async def process_websocket_message(websocket: WebSocket, data: dict, room_code:
                                         (new_host['id'], room_code)
                                     )
                                     
-                                    # Broadcast host update
+                                    # Send host update first
                                     host_update = {
                                         "type": "host_update",
                                         "new_host_id": str(new_host['id']),
@@ -1856,7 +1846,13 @@ async def process_websocket_message(websocket: WebSocket, data: dict, room_code:
                                         "message": f"{new_host['username']} is now the host"
                                     }
                                     await manager.broadcast_to_room(host_update, room_code)
-                                
+                            
+                            # Clear room association
+                            conn.execute(
+                                "UPDATE players SET room_code = NULL WHERE id = ?",
+                                (player_id,)
+                            )
+                            
                             # Broadcast player disconnect message
                             disconnect_message = {
                                 "type": "player_disconnect",
@@ -1868,7 +1864,7 @@ async def process_websocket_message(websocket: WebSocket, data: dict, room_code:
                             
                         conn.commit()
                         
-                    # Finally disconnect the WebSocket
+                    # Finally disconnect the WebSocket with all three required parameters
                     await manager.disconnect(websocket, room_code, player_id)
                     
                 except Exception as e:
