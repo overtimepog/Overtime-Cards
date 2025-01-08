@@ -8,9 +8,13 @@ import {
   TouchSensor,
   KeyboardSensor,
   useDraggable,
-  useDroppable
+  useDroppable,
+  DragOverlay,
+  defaultDropAnimationSideEffects
 } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 import backDark from '../components/cards/back_dark.png';
+import { Draggable } from '@dnd-kit/core';
 
 // Custom hook for drop zones
 const useDropZone = (type, onDrop, playerId = null) => {
@@ -85,12 +89,6 @@ const useGameDropZones = (gameState, playerId, handleCardDrop) => {
 const Card = React.memo(({ card, index, isInHand, onDrop, canDrag = true }) => {
   const [isHovered, setIsHovered] = useState(false);
   
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `card-${index}`,
-    data: { card, index },
-    disabled: !canDrag || card.show_back
-  });
-  
   if (!card) return null;
   
   // Generate the proper image path based on card rank and suit
@@ -98,25 +96,19 @@ const Card = React.memo(({ card, index, isInHand, onDrop, canDrag = true }) => {
     backDark : 
     require(`../components/cards/${card.suit.toLowerCase()}_${card.rank}.png`);
 
-  return (
+  const cardStyle = {
+    position: 'relative',
+    display: 'inline-block',
+    marginLeft: isInHand ? '-50px' : '0',
+    zIndex: isHovered ? 100 : index,
+    transition: 'all 0.2s ease, z-index 0s',
+    transform: isHovered ? 'translateY(-20px) translateX(25px) scale(1.1)' : 'none',
+  };
+
+  const cardContent = (
     <div
-      ref={setNodeRef}
-      {...listeners}
-      {...attributes}
-      className="card-container"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      style={{
-        position: 'relative',
-        display: 'inline-block',
-        marginLeft: isInHand ? '-50px' : '0',
-        zIndex: isHovered ? 100 : index,
-        transition: 'all 0.2s ease, z-index 0s',
-        transform: isHovered ? 'translateY(-20px) translateX(25px) scale(1.1)' : 'none',
-        cursor: (canDrag && !card.show_back) ? 'grab' : 'default',
-        opacity: isDragging ? 0.5 : 1,
-        touchAction: 'none' // Required for touch devices
-      }}
     >
       <img 
         src={imagePath}
@@ -133,6 +125,19 @@ const Card = React.memo(({ card, index, isInHand, onDrop, canDrag = true }) => {
       />
     </div>
   );
+
+  return (
+    <Draggable
+      id={`card-${index}`}
+      data={{ card, index }}
+      disabled={!canDrag || card.show_back}
+      style={cardStyle}
+      ariaLabel={card.show_back ? "Face down card" : `${card.rank} of ${card.suit}`}
+      className="card-container"
+    >
+      {cardContent}
+    </Draggable>
+  );
 });
 
 function GameView() {
@@ -146,24 +151,49 @@ function GameView() {
   const { username, gameType, isHost } = location.state || {};
   const [isCurrentPlayer, setIsCurrentPlayer] = useState(false);
   const [showPlayerSelection, setShowPlayerSelection] = useState(false);
+  const [activeId, setActiveId] = useState(null);
+  const [activeDragData, setActiveDragData] = useState(null);
 
   // Initialize drop zones using the custom hook
   const dropZones = useGameDropZones(gameState, playerId, handleCardDrop);
 
   const BASE_URL = process.env.REACT_APP_API_URL || "https://overtime-cards-api.onrender.com/api/v1";
 
-  // Setup DnD sensors
+  // Setup DnD sensors with proper configuration
   const sensors = useSensors(
-    useSensor(MouseSensor),
-    useSensor(TouchSensor),
-    useSensor(KeyboardSensor)
+    useSensor(MouseSensor, {
+      // Require the mouse to move by 10 pixels before activating
+      activationConstraint: {
+        distance: 10,
+      },
+    }),
+    useSensor(TouchSensor, {
+      // Press delay of 250ms, with tolerance of 5px of movement
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
   );
 
   // Handle DnD events
+  const handleDragStart = (event) => {
+    const { active } = event;
+    setActiveId(active.id);
+    setActiveDragData(active.data.current);
+  };
+
   const handleDragEnd = (event) => {
     const { active, over } = event;
     
-    if (!active || !over) return;
+    if (!active || !over) {
+      setActiveId(null);
+      setActiveDragData(null);
+      return;
+    }
 
     const sourceItem = active.data.current;
     const targetZone = over.data.current;
@@ -175,6 +205,24 @@ function GameView() {
       // Dropping on another card
       handleCardDrop(sourceItem, { card: targetZone.card, index: targetZone.index });
     }
+
+    setActiveId(null);
+    setActiveDragData(null);
+  };
+
+  const handleDragCancel = () => {
+    setActiveId(null);
+    setActiveDragData(null);
+  };
+
+  const dropAnimation = {
+    sideEffects: defaultDropAnimationSideEffects({
+      styles: {
+        active: {
+          opacity: '0.5',
+        },
+      },
+    }),
   };
 
   const handleLeaveGame = async () => {
@@ -1676,7 +1724,9 @@ function GameView() {
   return (
     <DndContext
       sensors={sensors}
+      onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
     >
       <div className="game-view" style={{
         position: 'relative',
@@ -1741,6 +1791,16 @@ function GameView() {
           Leave Game
         </button>
       </div>
+      <DragOverlay dropAnimation={dropAnimation}>
+        {activeId ? (
+          <Card
+            card={activeDragData.card}
+            index={activeDragData.index}
+            isInHand={false}
+            canDrag={false}
+          />
+        ) : null}
+      </DragOverlay>
     </DndContext>
   );
 }
