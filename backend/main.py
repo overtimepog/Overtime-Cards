@@ -1743,25 +1743,29 @@ async def process_websocket_message(websocket: WebSocket, data: dict, room_code:
             if player:
                 try:
                     with get_db() as conn:
-                        # First, clear room association and get player info in a single transaction
+                        # First get player info
                         cursor = conn.execute(
                             """
-                            WITH player_info AS (
-                                SELECT p.id, p.username, p.room_code, r.host_id
-                                FROM players p
-                                JOIN rooms r ON r.code = p.room_code
-                                WHERE p.id = ? AND p.room_code = ?
-                            )
-                            UPDATE players 
-                            SET room_code = NULL, last_activity = ?
-                            WHERE id = ?
-                            RETURNING (SELECT * FROM player_info)
+                            SELECT p.id, p.username, p.room_code, r.host_id
+                            FROM players p
+                            JOIN rooms r ON r.code = p.room_code
+                            WHERE p.id = ? AND p.room_code = ?
                             """,
-                            (player_id, room_code, datetime.now(UTC).isoformat(), player_id)
+                            (player_id, room_code)
                         )
                         player_info = cursor.fetchone()
                         
                         if player_info:
+                            # Update player's room_code to NULL
+                            conn.execute(
+                                """
+                                UPDATE players 
+                                SET room_code = NULL, last_activity = ?
+                                WHERE id = ?
+                                """,
+                                (datetime.now(UTC).isoformat(), player_id)
+                            )
+                            
                             # Broadcast player disconnect message
                             disconnect_message = {
                                 "type": "player_disconnect",
@@ -1777,23 +1781,27 @@ async def process_websocket_message(websocket: WebSocket, data: dict, room_code:
                             if was_host:
                                 cursor = conn.execute(
                                     """
-                                    WITH active_players AS (
-                                        SELECT id, username
-                                        FROM players
-                                        WHERE room_code = ? AND id != ? AND last_activity > ?
-                                        ORDER BY last_activity DESC
-                                        LIMIT 1
-                                    )
-                                    UPDATE rooms 
-                                    SET host_id = (SELECT id FROM active_players)
-                                    WHERE code = ?
-                                    RETURNING (SELECT * FROM active_players)
+                                    SELECT id, username
+                                    FROM players
+                                    WHERE room_code = ? AND id != ? AND last_activity > ?
+                                    ORDER BY last_activity DESC
+                                    LIMIT 1
                                     """,
-                                    (room_code, player_id, (datetime.now(UTC) - timedelta(minutes=2)).isoformat(), room_code)
+                                    (room_code, player_id, (datetime.now(UTC) - timedelta(minutes=2)).isoformat())
                                 )
                                 new_host = cursor.fetchone()
                                 
                                 if new_host:
+                                    # Update room with new host
+                                    conn.execute(
+                                        """
+                                        UPDATE rooms 
+                                        SET host_id = ?
+                                        WHERE code = ?
+                                        """,
+                                        (new_host['id'], room_code)
+                                    )
+                                    
                                     # Broadcast host update
                                     host_update = {
                                         "type": "host_update",
@@ -1806,7 +1814,6 @@ async def process_websocket_message(websocket: WebSocket, data: dict, room_code:
                                     # No active players left, delete the room
                                     conn.execute("DELETE FROM game_state WHERE room_code = ?", (room_code,))
                                     conn.execute("DELETE FROM rooms WHERE code = ?", (room_code,))
-                            
 
                             # Clean up any duplicate connections for this player
                             if room_code in manager.active_connections and player_id in manager.active_connections[room_code]:
