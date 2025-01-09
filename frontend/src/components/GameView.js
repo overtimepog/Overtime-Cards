@@ -519,8 +519,8 @@ function GameView() {
         throw new Error(errorData.detail || 'Failed to perform action');
       }
 
-      // Process response if needed
-      const result = await response.json();
+      // Remove the unused result assignment
+      await response.json();
       
       // If the action was related to card selection, reset selection
       if (actionType.includes('card')) {
