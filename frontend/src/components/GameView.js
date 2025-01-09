@@ -360,8 +360,8 @@ function GameView() {
         ws.close();
       }
       
-      // Call leave room API endpoint
-      await fetch(`${BASE_URL}/rooms/${roomCode}/leave`, {
+      // Call leave room API endpoint with correct URL structure
+      await fetch(`${BASE_URL}/rooms/${roomCode}/players/${playerId}/leave`, {
         method: 'POST',
         credentials: 'include',
         headers: { 
