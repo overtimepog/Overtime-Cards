@@ -709,23 +709,28 @@ function GameView() {
         <div style={{
           display: 'flex',
           justifyContent: 'center',
-          paddingLeft: handToRender.length > 1 ? '50px' : '0',
+          paddingLeft: handToRender.length > 1 ? '30px' : '0',
           position: 'relative',
+          marginLeft: '-25px',
         }}>
           {handToRender.map((card, idx) => (
-            <Card 
-              key={`${card.suit}_${card.rank}_${idx}`}
-              card={card}
-              index={idx}
-              isInHand={isCurrentPlayerHand}
-              canDrag={isCurrentPlayerHand && !card.show_back && isCurrentPlayerTurn}
-              onCardClick={
-                isCurrentPlayerHand && !card.show_back && isCurrentPlayerTurn
-                  ? () => handleCardClick(idx)
-                  : undefined
-              }
-              gameType={gameType}
-            />
+            <div key={`${card.suit}_${card.rank}_${idx}`} style={{
+              marginLeft: idx === 0 ? '0' : '-25px',
+            }}>
+              <Card 
+                card={card}
+                index={idx}
+                isInHand={isCurrentPlayerHand}
+                canDrag={isCurrentPlayerHand && !card.show_back && isCurrentPlayerTurn}
+                onCardClick={
+                  isCurrentPlayerHand && !card.show_back && isCurrentPlayerTurn
+                    ? () => handleCardClick(idx)
+                    : undefined
+                }
+                gameType={gameType}
+                isSelected={selectedCards.includes(idx)}
+              />
+            </div>
           ))}
         </div>
         <div style={{
