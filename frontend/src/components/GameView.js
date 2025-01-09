@@ -123,28 +123,37 @@ const Card = React.memo(({
     backDark : 
     require(`../components/cards/${card.suit.toLowerCase()}_${card.rank}.png`);
 
-  const cardStyle = {
-    position: 'relative',
-    display: 'inline-block',
-    marginLeft: isInHand ? '-50px' : '0',
-    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-    transform: isSelected 
-      ? 'translateY(-30px) scale(1.1)' 
-      : isHovered 
-        ? 'translateY(-10px) scale(1.05)' 
-        : 'none',
-    isolation: 'isolate',
-    pointerEvents: 'auto',
-    zIndex: isHovered ? 900 + index : 100 + index,
-    cursor: onCardClick && !card.show_back ? 'pointer' : 'default',
-    ...style
-  };
-
   const handleClick = (e) => {
     e.preventDefault();
     e.stopPropagation(); 
     if (onCardClick && !card.show_back) {
       onCardClick(index);
+    }
+  };
+
+  const consolidatedStyle = {
+    container: {
+      position: 'relative',
+      zIndex: isHovered ? 900 + index : 100 + index,
+      isolation: 'isolate',
+      cursor: onCardClick && !card.show_back ? 'pointer' : 'default',
+      pointerEvents: 'auto',
+      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+      ...style // Allow custom style overrides
+    },
+    image: {
+      width: '80px',
+      height: 'auto',
+      borderRadius: '8px',
+      boxShadow: isSelected 
+        ? '0 0 0 3px white, 0 0 15px rgba(255,255,255,0.5), 0 8px 16px rgba(0,0,0,0.3)'
+        : isHovered 
+          ? '0 8px 16px rgba(0,0,0,0.3)' 
+          : '0 2px 4px rgba(0,0,0,0.1)',
+      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+      pointerEvents: 'none',
+      position: 'relative',
+      transform: isSelected ? 'scale(1.02)' : 'none'
     }
   };
 
@@ -154,37 +163,24 @@ const Card = React.memo(({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={handleClick}
-      style={cardStyle}
+      style={consolidatedStyle.container}
     >
       <img 
         src={imagePath}
         alt={card.show_back ? "Card back" : `${card.rank} of ${card.suit}`}
         className="card-image"
-        style={{
-          width: '80px',
-          height: 'auto',
-          borderRadius: '8px',
-          boxShadow: isSelected 
-            ? '0 0 0 3px white, 0 0 15px rgba(255,255,255,0.5), 0 8px 16px rgba(0,0,0,0.3)'
-            : isHovered 
-              ? '0 8px 16px rgba(0,0,0,0.3)' 
-              : '0 2px 4px rgba(0,0,0,0.1)',
-          transition: 'inherit',
-          pointerEvents: 'none',
-          transform: isSelected ? 'scale(1.02)' : 'none'
-        }}
+        style={consolidatedStyle.image}
       />
     </div>
   );
 
-  // Now allow dragging for any game (as long as it's your card, not face-down, etc.)
   if (canDrag && !card.show_back && isInHand) {
     const cardId = `hand-card-${card.suit}_${card.rank}_${index}`;
     return (
       <Draggable
         id={cardId}
         data={{ card, index }}
-        style={cardStyle}
+        style={consolidatedStyle.container}
         ariaLabel={card.show_back ? "Face down card" : `${card.rank} of ${card.suit}`}
         className="card-container"
       >
@@ -193,25 +189,16 @@ const Card = React.memo(({
     );
   }
 
-  // For all other cases, return a clickable div
   return (
     <div 
-      style={{
-        position: 'relative',
-        zIndex: isHovered ? 9999 : index,
-        isolation: 'isolate'
-      }}
+      className={`card-container ${onCardClick && !card.show_back ? 'clickable' : ''}`}
+      style={consolidatedStyle.container}
     >
-      <div 
-        style={cardStyle} 
-        className={`card-container ${onCardClick && !card.show_back ? 'clickable' : ''}`}
-        onClick={handleClick}
-      >
-        {cardContent}
-      </div>
+      {cardContent}
     </div>
   );
 });
+
 
 function GameView() {
   const { roomCode, playerId } = useParams();
