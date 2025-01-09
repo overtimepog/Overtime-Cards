@@ -444,16 +444,25 @@ body {
 }
 
 .game-card {
-  background-color: white;
+  background-color: var(--background-color-light);
   border-radius: var(--border-radius);
   padding: 20px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
+:root[data-theme='dark'] .game-card {
+  background-color: #2a2a2a;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
 .game-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+:root[data-theme='dark'] .game-card:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
 }
 
 .game-card h3 {
@@ -467,13 +476,53 @@ body {
   line-height: 1.4;
 }
 
+/* Game card button styles */
+.game-card button {
+  background-color: var(--secondary-color);
+  color: white;
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  opacity: 0.9;
+}
+
+.game-card button:hover {
+  opacity: 1;
+}
+
+:root[data-theme='dark'] .game-card button {
+  background-color: var(--secondary-color-dark);
+}
+
+/* Player count badge */
 .player-count {
   display: inline-block;
   background-color: var(--background-color);
   padding: 5px 10px;
   border-radius: 15px;
   font-size: 0.9rem;
-  color: var(--primary-color);
+  color: var(--text-color);
+}
+
+:root[data-theme='dark'] .player-count {
+  background-color: #3a3a3a;
+  color: var(--text-color-dark);
+}
+
+/* Menu description text */
+.menu-description {
+  text-align: center;
+  margin: 2rem 0;
+  font-size: 1.2rem;
+  color: var(--text-color);
+}
+
+/* Game list heading */
+.game-list h2 {
+  color: var(--text-color);
+  text-align: center;
+  margin-bottom: 1rem;
 }
 
 /* Responsive adjustments */
