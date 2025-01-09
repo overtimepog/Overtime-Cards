@@ -875,12 +875,12 @@ function GameView() {
               {/* Draw pile */}
               <div 
                 className="draw-pile"
-                onClick={() => isCurrentPlayer && handleGameAction('draw_card', { source: 'deck' })}
+                onClick={() => isCurrentPlayer && gameType !== 'go_fish' && handleGameAction('draw_card')}
                 style={{
                   position: 'relative',
-                  cursor: isCurrentPlayer ? 'pointer' : 'default',
+                  cursor: isCurrentPlayer && gameType !== 'go_fish' ? 'pointer' : 'default',
                   transition: 'transform 0.2s',
-                  transform: isCurrentPlayer ? 'scale(1.05)' : 'scale(1)',
+                  transform: isCurrentPlayer && gameType !== 'go_fish' ? 'scale(1.05)' : 'scale(1)',
                 }}
               >
                 {gameState.deck?.cards_remaining > 0 && (
@@ -1068,12 +1068,12 @@ function GameView() {
             {/* Draw pile */}
             <div 
               className="draw-pile"
-              onClick={() => isCurrentPlayer && handleGameAction('draw_card')}
+              onClick={() => isCurrentPlayer && gameType !== 'go_fish' && handleGameAction('draw_card')}
               style={{
                 position: 'relative',
-                cursor: isCurrentPlayer ? 'pointer' : 'default',
+                cursor: isCurrentPlayer && gameType !== 'go_fish' ? 'pointer' : 'default',
                 transition: 'transform 0.2s',
-                transform: isCurrentPlayer ? 'scale(1.05)' : 'scale(1)',
+                transform: isCurrentPlayer && gameType !== 'go_fish' ? 'scale(1.05)' : 'scale(1)',
               }}
             >
               {gameState.deck?.cards_remaining > 0 && (
