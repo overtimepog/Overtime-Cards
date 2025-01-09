@@ -155,7 +155,10 @@ const Card = React.memo(({
         cursor: onCardClick && !card.show_back ? 'pointer' : 'default',
         pointerEvents: 'auto',
         position: 'relative',
-        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+        // Match parent transition
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        // Match parent z-index
+        zIndex: isSelected ? 2000 + index : isHovered ? 900 + index : 100 + index
       }}
     >
       <img 
@@ -166,14 +169,18 @@ const Card = React.memo(({
           width: '80px',
           height: 'auto',
           borderRadius: '8px',
+          // Enhanced box-shadow for selected state
           boxShadow: isSelected 
-            ? '0 0 0 2px white, 0 0 15px rgba(255,255,255,0.5)' 
+            ? '0 0 0 3px white, 0 0 15px rgba(255,255,255,0.5), 0 8px 16px rgba(0,0,0,0.3)'
             : isHovered 
               ? '0 8px 16px rgba(0,0,0,0.3)' 
               : '0 2px 4px rgba(0,0,0,0.1)',
+          // Match parent transition
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           pointerEvents: 'none',
-          position: 'relative'
+          position: 'relative',
+          // Add subtle scale animation for selected state
+          transform: isSelected ? 'scale(1.02)' : 'none'
         }}
       />
     </div>
@@ -198,11 +205,19 @@ const Card = React.memo(({
   // For all other cases, return a clickable div
   return (
     <div 
-      style={cardStyle} 
-      className={`card-container ${onCardClick && !card.show_back ? 'clickable' : ''}`}
-      onClick={handleClick}
+      style={{
+        position: 'relative',
+        zIndex: isHovered ? 9999 : index,
+        isolation: 'isolate'
+      }}
     >
-      {cardContent}
+      <div 
+        style={cardStyle} 
+        className={`card-container ${onCardClick && !card.show_back ? 'clickable' : ''}`}
+        onClick={handleClick}
+      >
+        {cardContent}
+      </div>
     </div>
   );
 });
