@@ -550,13 +550,15 @@ body {
 }
 
 .chat-messages {
-  height: 200px;
+  flex-grow: 1;
+  height: 400px;
   overflow-y: auto;
   margin-bottom: var(--spacing);
-  padding: 10px;
+  padding: var(--spacing);
   background-color: var(--background-color-light);
   border: 1px solid var(--secondary-color);
   border-radius: var(--border-radius);
+  contain: strict;
 }
 
 :root[data-theme='dark'] .chat-messages {
@@ -954,6 +956,7 @@ body {
   background-color: var(--background-color-light);
   border: 1px solid var(--secondary-color);
   border-radius: var(--border-radius);
+  contain: strict;
 }
 
 :root[data-theme='dark'] .chat-messages {

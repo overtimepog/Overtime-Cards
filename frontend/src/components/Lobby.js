@@ -19,7 +19,14 @@ function Lobby() {
   useEffect(() => {
     if (chatEndRef.current && chatMessages.length > 0) {
       const chatContainer = chatEndRef.current.parentElement;
-      chatContainer.scrollTop = chatContainer.scrollHeight;
+      // Only scroll if the container is full (content exceeds visible area)
+      if (chatContainer.scrollHeight > chatContainer.clientHeight) {
+        // Scroll just enough to show the latest message
+        const lastMessage = chatContainer.lastElementChild.previousElementSibling; // Get last message before the ref
+        if (lastMessage) {
+          lastMessage.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        }
+      }
     }
   }, [chatMessages]);
 
