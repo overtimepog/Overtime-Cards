@@ -75,8 +75,7 @@ const Card = React.memo(({ card, index, isInHand, canDrag = true }) => {
           height: 'auto',
           borderRadius: '8px',
           boxShadow: isHovered ? '0 8px 16px rgba(0,0,0,0.3)' : '0 2px 4px rgba(0,0,0,0.1)',
-          transition: 'all 0.2s ease',
-          pointerEvents: 'none'
+          transition: 'all 0.2s ease'
         }}
       />
     </div>
