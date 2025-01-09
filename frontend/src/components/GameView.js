@@ -498,30 +498,29 @@ function GameView() {
         return;
       }
 
-      // Send game action via HTTP endpoint instead of WebSocket
-      const response = await fetch(`${BASE_URL}/game-action/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Origin': window.location.origin
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          action_type: actionType,
-          action_data: actionData,
-          room_code: roomCode,
-          player_id: parseInt(playerId)
-        })
-      });
+      // Clear any previous errors
+      setError('');
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to perform action');
-      }
+      // Send game action via WebSocket
+      ws.send(JSON.stringify({
+        type: 'game_action',
+        action_type: actionType,
+        action_data: {
+          ...actionData,
+          game_type: gameType // Include game type with every action
+        },
+        room_code: roomCode,
+        player_id: parseInt(playerId)
+      }));
 
     } catch (err) {
       console.error('Error performing game action:', err);
-      setError(err.message || 'Failed to perform action');
+      setError('Failed to perform action. Please try again.');
+      
+      // If the action was related to card selection, reset selection
+      if (actionType.includes('card')) {
+        setSelectedCards([]);
+      }
     }
   };
 
