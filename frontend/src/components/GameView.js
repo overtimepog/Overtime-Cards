@@ -577,6 +577,7 @@ function GameView() {
             ? () => handleCardClick(index)
             : undefined
         }
+        isSelected={selectedCards.includes(index)}
         gameType={gameType}
         {...dropConfig}
       />
