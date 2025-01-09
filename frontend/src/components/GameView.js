@@ -368,7 +368,7 @@ function GameView() {
       }
       
       // Call leave room API endpoint with correct URL structure
-      await fetch(`${BASE_URL}/rooms/${roomCode}/players/${playerId}/leave`, {
+      await fetch(`${BASE_URL}/rooms/${roomCode}/leave`, {
         method: 'POST',
         credentials: 'include',
         headers: { 
