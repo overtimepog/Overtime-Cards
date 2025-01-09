@@ -491,10 +491,52 @@ function GameView() {
     );
   };
 
+  const calculatePlayerPosition = (index, totalPlayers, radius = 300) => {
+    const playerIds = Object.keys(gameState.players);
+    const myIndex = playerIds.indexOf(playerId);
+    const isCurrentPlayer = playerIds[index] === playerId;
+    
+    // If this is the current player, position at bottom
+    if (isCurrentPlayer) {
+      return {
+        left: '50%',
+        bottom: '20px',
+        transform: 'translateX(-50%)',
+        position: 'absolute'
+      };
+    }
+    
+    // For other players, distribute them in a semicircle at the top
+    const remainingPlayers = totalPlayers - 1;
+    const currentIndex = index > myIndex ? index - 1 : index;
+    
+    // Calculate angle for this player, using a 180-degree arc
+    const startAngle = -180; // Start from right side
+    const angleStep = 180 / (remainingPlayers + 1);
+    const angle = startAngle + (angleStep * (currentIndex + 1));
+    
+    // Convert to radians and calculate position
+    const rad = (angle * Math.PI) / 180;
+    const x = Math.cos(rad) * radius;
+    const y = Math.sin(rad) * (radius * 0.6); // Reduce vertical spacing
+    
+    return {
+      left: `calc(50% + ${x}px)`,
+      top: `calc(30% + ${y}px)`, // Position higher up
+      transform: 'translate(-50%, -50%)',
+      position: 'absolute'
+    };
+  };
+
   const renderPlayerHand = (player, position) => {
     const isCurrentPlayer = player.id === playerId;
     const hand = player.hand || [];
-    const handToRender = isCurrentPlayer ? hand : hand.map(() => ({ show_back: true }));
+    let handToRender = isCurrentPlayer ? hand : hand.map(() => ({ show_back: true }));
+    
+    // Limit non-current player hands to 10 visible cards
+    if (!isCurrentPlayer && handToRender.length > 10) {
+      handToRender = handToRender.slice(0, 10);
+    }
     
     const handStyle = {
       ...position,
@@ -520,7 +562,7 @@ function GameView() {
         <div style={{
           display: 'flex',
           justifyContent: 'center',
-          paddingLeft: '50px',
+          paddingLeft: handToRender.length > 1 ? '50px' : '0',
         }}>
           {handToRender.map((card, index) => (
             <Card 
@@ -539,47 +581,13 @@ function GameView() {
           fontSize: '0.9em',
           textShadow: '1px 1px 2px rgba(0,0,0,0.5)'
         }}>
-          {player.name} {isCurrentPlayer ? '(You)' : ''}
+          {player.name} {isCurrentPlayer ? '(You)' : `(${hand.length} cards)`}
           {player.is_host && ' (Host)'}
         </div>
       </div>
     );
 
     return isCurrentPlayer ? content : renderDropZone(`player-${player.id}`, content, handStyle);
-  };
-
-  const calculatePlayerPosition = (index, totalPlayers, radius = 250) => { // Reduced radius
-    const playerIds = Object.keys(gameState.players);
-    const myIndex = playerIds.indexOf(playerId);
-    const isCurrentPlayer = playerIds[index] === playerId;
-    
-    // If this is the current player, position at bottom
-    if (isCurrentPlayer) {
-      return {
-        left: '50%',
-        bottom: '10px', // Reduced bottom margin
-        transform: 'translateX(-50%)',
-        position: 'absolute'
-      };
-    }
-    
-    // For other players, distribute them in a semicircle at the top
-    const remainingPlayers = totalPlayers - 1;
-    const currentIndex = index > myIndex ? index - 1 : index;
-    
-    // Calculate angle for this player, using a 180-degree arc
-    const startAngle = 180; // Start from left side
-    const angleStep = 180 / (remainingPlayers + 1);
-    const angle = startAngle - (angleStep * (currentIndex + 1));
-    
-    // Convert to radians and calculate position
-    const rad = (angle * Math.PI) / 180;
-    return {
-      left: `calc(50% + ${Math.cos(rad) * radius}px)`,
-      top: `calc(10% + ${-Math.sin(rad) * (radius * 0.5)}px)`, // Adjusted vertical positioning
-      transform: 'translate(-50%, -50%)',
-      position: 'absolute'
-    };
   };
 
   const renderGameCenter = () => {
