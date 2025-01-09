@@ -17,8 +17,9 @@ function Lobby() {
 
   // Auto scroll chat to bottom when new messages arrive
   useEffect(() => {
-    if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (chatEndRef.current && chatMessages.length > 0) {
+      const chatContainer = chatEndRef.current.parentElement;
+      chatContainer.scrollTop = chatContainer.scrollHeight;
     }
   }, [chatMessages]);
 
