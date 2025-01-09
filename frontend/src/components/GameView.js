@@ -42,9 +42,10 @@ const useGameDropZones = (gameState, playerId) => {
   };
 };
 
-// Card component with drag and drop functionality
-const Card = React.memo(({ card, index, isInHand, canDrag = true }) => {
+// Card component with drag and drop functionality, and clickable
+const Card = React.memo(({ card, index, isInHand, canDrag = true, onClick, isSelected, gameType }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const [dragStartTime, setDragStartTime] = useState(null);
   
   if (!card) return null;
   
@@ -56,15 +57,26 @@ const Card = React.memo(({ card, index, isInHand, canDrag = true }) => {
     position: 'relative',
     display: 'inline-block',
     marginLeft: isInHand ? '-50px' : '0',
-    zIndex: isHovered ? 100 : index,
+    zIndex: isHovered || isSelected ? 100 : index,
     transition: 'all 0.2s ease, z-index 0s',
-    transform: isHovered ? 'translateY(-20px) translateX(25px) scale(1.1)' : 'none',
+    transform: isSelected ? 'translateY(-30px) scale(1.1)' : 
+               isHovered ? 'translateY(-20px) translateX(25px) scale(1.1)' : 'none',
+    cursor: canDrag ? 'pointer' : 'default'
+  };
+
+  const handleClick = (e) => {
+    // Only trigger click if it wasn't a drag (dragStartTime will be set by Draggable)
+    if (!dragStartTime || (Date.now() - dragStartTime < 200)) {
+      onClick?.(e);
+    }
   };
 
   const cardContent = (
     <div
+      onClick={handleClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      style={{ pointerEvents: 'auto' }}
     >
       <img 
         src={imagePath}
@@ -74,8 +86,11 @@ const Card = React.memo(({ card, index, isInHand, canDrag = true }) => {
           width: '80px',
           height: 'auto',
           borderRadius: '8px',
-          boxShadow: isHovered ? '0 8px 16px rgba(0,0,0,0.3)' : '0 2px 4px rgba(0,0,0,0.1)',
-          transition: 'all 0.2s ease'
+          boxShadow: isSelected ? '0 0 0 3px #FFD700, 0 8px 16px rgba(0,0,0,0.3)' :
+                    isHovered ? '0 8px 16px rgba(0,0,0,0.3)' : 
+                    '0 2px 4px rgba(0,0,0,0.1)',
+          transition: 'all 0.2s ease',
+          pointerEvents: 'auto'
         }}
       />
     </div>
@@ -89,6 +104,8 @@ const Card = React.memo(({ card, index, isInHand, canDrag = true }) => {
       style={cardStyle}
       ariaLabel={card.show_back ? "Face down card" : `${card.rank} of ${card.suit}`}
       className="card-container"
+      onDragStart={() => setDragStartTime(Date.now())}
+      onDragEnd={() => setDragStartTime(null)}
     >
       {cardContent}
     </Draggable>
@@ -118,13 +135,13 @@ function GameView() {
   const sensors = useSensors(
     useSensor(MouseSensor, {
       activationConstraint: {
-        distance: 10,
-        tolerance: 5,
+        distance: 5, // Reduced distance for better click detection
+        delay: 0,
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 250,
+        delay: 150, // Reduced delay for better mobile experience
         tolerance: 5,
       },
     }),
@@ -396,8 +413,17 @@ function GameView() {
     if (!gameState?.players?.[playerId]?.hand) return;
     
     if (gameType === 'go_fish') {
-      setSelectedCards([cardIndex]); // Only allow one card selected at a time for Go Fish
+      // In Go Fish, only allow one card selected at a time
+      setSelectedCards(prev => {
+        // If the card is already selected, deselect it
+        if (prev.includes(cardIndex)) {
+          return [];
+        }
+        // Otherwise, select only this card
+        return [cardIndex];
+      });
     } else {
+      // For other games, allow multiple selections
       setSelectedCards(prev => {
         const isSelected = prev.includes(cardIndex);
         if (isSelected) {
@@ -572,21 +598,16 @@ function GameView() {
           zIndex: thisIsCurrentPlayer ? 1000 : 1
         }}>
           {handToRender.map((card, idx) => (
-            <div
+            <Card 
               key={idx}
+              card={card}
+              index={idx}
+              isInHand={thisIsCurrentPlayer}
+              canDrag={thisIsCurrentPlayer && !card.show_back}
               onClick={() => isCurrentPlayer && handleCardClick(idx)}
-              style={{ cursor: thisIsCurrentPlayer && !card.show_back ? 'pointer' : 'default' }}
-            >
-              <Card 
-                card={card}
-                index={idx}
-                isInHand={thisIsCurrentPlayer}
-                canDrag={thisIsCurrentPlayer && !card.show_back}
-                style={{
-                  zIndex: thisIsCurrentPlayer ? 1000 + idx : 1 + idx
-                }}
-              />
-            </div>
+              isSelected={selectedCards.includes(idx)}
+              gameType={gameType}
+            />
           ))}
         </div>
         <div style={{
