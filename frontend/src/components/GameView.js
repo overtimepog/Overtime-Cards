@@ -79,8 +79,10 @@ const Card = React.memo(({
     <div
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onClick={handleClick}
-      style={{ cursor: onCardClick && !card.show_back ? 'pointer' : 'default' }}
+      style={{ 
+        cursor: onCardClick && !card.show_back ? 'pointer' : 'default',
+        pointerEvents: 'auto'
+      }}
     >
       <img 
         src={imagePath}
@@ -98,27 +100,39 @@ const Card = React.memo(({
     </div>
   );
 
-  // If card shouldn't be draggable, return a regular div
-  if (!canDrag || card.show_back) {
+  // If card should be draggable
+  if (canDrag && !card.show_back && isInHand) {
     return (
-      <div style={cardStyle} className="card-container" onClick={handleClick}>
+      <Draggable
+        id={`card-${index}`}
+        data={{ card, index }}
+        style={cardStyle}
+        ariaLabel={card.show_back ? "Face down card" : `${card.rank} of ${card.suit}`}
+        className="card-container"
+      >
+        {cardContent}
+      </Draggable>
+    );
+  }
+
+  // If card should be selectable (but not draggable)
+  if (onCardClick && !card.show_back && isInHand) {
+    return (
+      <div 
+        style={cardStyle} 
+        className="card-container" 
+        onClick={handleClick}
+      >
         {cardContent}
       </div>
     );
   }
 
-  // Otherwise return a draggable component
+  // Otherwise return a regular non-interactive card
   return (
-    <Draggable
-      id={`card-${index}`}
-      data={{ card, index }}
-      style={cardStyle}
-      ariaLabel={card.show_back ? "Face down card" : `${card.rank} of ${card.suit}`}
-      className="card-container"
-      onClick={handleClick}
-    >
+    <div style={cardStyle} className="card-container">
       {cardContent}
-    </Draggable>
+    </div>
   );
 });
 
