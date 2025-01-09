@@ -619,21 +619,21 @@ function GameView() {
           zIndex: thisIsCurrentPlayer ? 1000 : 1
         }}>
           {handToRender.map((card, idx) => (
-            <div
+            <Card 
               key={idx}
-              onClick={() => isCurrentPlayer && handleCardClick(idx)}
-              style={{ cursor: thisIsCurrentPlayer && !card.show_back ? 'pointer' : 'default' }}
-            >
-              <Card 
-                card={card}
-                index={idx}
-                isInHand={thisIsCurrentPlayer}
-                canDrag={thisIsCurrentPlayer && !card.show_back}
-                style={{
-                  zIndex: thisIsCurrentPlayer ? 1000 + idx : 1 + idx
-                }}
-              />
-            </div>
+              card={card}
+              index={idx}
+              isInHand={thisIsCurrentPlayer}
+              canDrag={thisIsCurrentPlayer && !card.show_back && isCurrentPlayer}
+              onCardClick={
+                thisIsCurrentPlayer && !card.show_back && isCurrentPlayer
+                  ? () => handleCardClick(idx)
+                  : undefined
+              }
+              style={{
+                zIndex: thisIsCurrentPlayer ? 1000 + idx : 1 + idx
+              }}
+            />
           ))}
         </div>
         <div style={{
