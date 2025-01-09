@@ -81,7 +81,8 @@ const Card = React.memo(({
   isInHand, 
   canDrag = true, 
   onCardClick,
-  style = {}
+  style = {},
+  gameType
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   
@@ -558,6 +559,7 @@ function GameView() {
             ? () => handleCardClick(index)
             : undefined
         }
+        gameType={gameType}
         {...dropConfig}
       />
     );
@@ -661,6 +663,7 @@ function GameView() {
               style={{
                 zIndex: thisIsCurrentPlayer ? 1000 + idx : 1 + idx
               }}
+              gameType={gameType}
             />
           ))}
         </div>
@@ -1658,6 +1661,7 @@ function GameView() {
               card={activeDragData?.card}
               index={activeDragData?.index}
               isInHand={false}
+              gameType={gameType}
             />
           ) : null}
         </DragOverlay>
