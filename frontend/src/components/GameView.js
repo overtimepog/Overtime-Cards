@@ -613,11 +613,6 @@ function GameView() {
         }
         break;
 
-      case 'go_fish':
-        // For Go Fish, we no longer allow dropping onto other players.
-        // Instead, we handle it via card selection and the dropdown menu
-        break;
-
       default:
         // For games that use card selection
         handleCardClick(sourceIndex);
