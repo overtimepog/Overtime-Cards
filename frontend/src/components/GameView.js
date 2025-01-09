@@ -81,11 +81,20 @@ const Card = React.memo(({ card, index, isInHand, canDrag = true }) => {
     </div>
   );
 
+  // If card shouldn't be draggable, return a regular div
+  if (!canDrag || card.show_back) {
+    return (
+      <div style={cardStyle} className="card-container">
+        {cardContent}
+      </div>
+    );
+  }
+
+  // Otherwise return a draggable component
   return (
     <Draggable
       id={`card-${index}`}
       data={{ card, index }}
-      disabled={!canDrag || card.show_back}
       style={cardStyle}
       ariaLabel={card.show_back ? "Face down card" : `${card.rank} of ${card.suit}`}
       className="card-container"
