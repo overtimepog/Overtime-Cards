@@ -75,6 +75,10 @@ body {
   font-size: 16px;
   margin: 10px;
   transition: background-color 0.3s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .button:hover {
@@ -744,4 +748,12 @@ body {
 
 :root[data-theme='dark'] .game-controls button:hover {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+.button img,
+.button svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
 } 
