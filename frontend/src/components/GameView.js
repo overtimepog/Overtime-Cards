@@ -82,7 +82,8 @@ const Card = React.memo(({
   canDrag = true, 
   onCardClick,
   style = {},
-  gameType
+  gameType,
+  isSelected = false
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   
@@ -98,7 +99,7 @@ const Card = React.memo(({
     marginLeft: isInHand ? '-50px' : '0',
     zIndex: isHovered ? 9999 : index,
     transition: 'all 0.2s ease',
-    transform: isHovered ? 'translateY(-20px) translateX(25px) scale(1.1)' : 'none',
+    transform: (isHovered || isSelected) ? 'translateY(-20px) translateX(25px) scale(1.1)' : 'none',
     isolation: 'isolate',
     pointerEvents: 'auto',
     ...style
@@ -133,7 +134,11 @@ const Card = React.memo(({
           width: '80px',
           height: 'auto',
           borderRadius: '8px',
-          boxShadow: isHovered ? '0 8px 16px rgba(0,0,0,0.3)' : '0 2px 4px rgba(0,0,0,0.1)',
+          boxShadow: isSelected 
+            ? '0 0 0 3px white, 0 8px 16px rgba(0,0,0,0.3)'
+            : isHovered 
+              ? '0 8px 16px rgba(0,0,0,0.3)' 
+              : '0 2px 4px rgba(0,0,0,0.1)',
           transition: 'all 0.2s ease',
           pointerEvents: 'none',
           position: 'relative',
