@@ -43,7 +43,7 @@ const useGameDropZones = (gameState, playerId) => {
 };
 
 // Card component with drag and drop functionality, and clickable
-const Card = React.memo(({ card, index, isInHand, canDrag = true, onClick, isSelected, gameType }) => {
+const Card = React.memo(({ card, index, isInHand, canDrag = true, onClick }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [dragStartTime, setDragStartTime] = useState(null);
   
@@ -57,10 +57,9 @@ const Card = React.memo(({ card, index, isInHand, canDrag = true, onClick, isSel
     position: 'relative',
     display: 'inline-block',
     marginLeft: isInHand ? '-50px' : '0',
-    zIndex: isHovered || isSelected ? 100 : index,
+    zIndex: isHovered ? 100 : index,
     transition: 'all 0.2s ease, z-index 0s',
-    transform: isSelected ? 'translateY(-30px) scale(1.1)' : 
-               isHovered ? 'translateY(-20px) translateX(25px) scale(1.1)' : 'none',
+    transform: isHovered ? 'translateY(-20px) translateX(25px) scale(1.1)' : 'none',
     cursor: canDrag ? 'pointer' : 'default'
   };
 
@@ -86,9 +85,7 @@ const Card = React.memo(({ card, index, isInHand, canDrag = true, onClick, isSel
           width: '80px',
           height: 'auto',
           borderRadius: '8px',
-          boxShadow: isSelected ? '0 0 0 3px #FFD700, 0 8px 16px rgba(0,0,0,0.3)' :
-                    isHovered ? '0 8px 16px rgba(0,0,0,0.3)' : 
-                    '0 2px 4px rgba(0,0,0,0.1)',
+          boxShadow: isHovered ? '0 8px 16px rgba(0,0,0,0.3)' : '0 2px 4px rgba(0,0,0,0.1)',
           transition: 'all 0.2s ease',
           pointerEvents: 'auto'
         }}
@@ -413,17 +410,8 @@ function GameView() {
     if (!gameState?.players?.[playerId]?.hand) return;
     
     if (gameType === 'go_fish') {
-      // In Go Fish, only allow one card selected at a time
-      setSelectedCards(prev => {
-        // If the card is already selected, deselect it
-        if (prev.includes(cardIndex)) {
-          return [];
-        }
-        // Otherwise, select only this card
-        return [cardIndex];
-      });
+      setSelectedCards([cardIndex]); // Only allow one card selected at a time for Go Fish
     } else {
-      // For other games, allow multiple selections
       setSelectedCards(prev => {
         const isSelected = prev.includes(cardIndex);
         if (isSelected) {
@@ -605,8 +593,6 @@ function GameView() {
               isInHand={thisIsCurrentPlayer}
               canDrag={thisIsCurrentPlayer && !card.show_back}
               onClick={() => isCurrentPlayer && handleCardClick(idx)}
-              isSelected={selectedCards.includes(idx)}
-              gameType={gameType}
             />
           ))}
         </div>
