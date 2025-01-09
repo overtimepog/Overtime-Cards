@@ -43,7 +43,13 @@ const useGameDropZones = (gameState, playerId) => {
 };
 
 // Card component with drag and drop functionality
-const Card = React.memo(({ card, index, isInHand, canDrag = true }) => {
+const Card = React.memo(({ 
+  card, 
+  index, 
+  isInHand, 
+  canDrag = true, 
+  onCardClick
+}) => {
   const [isHovered, setIsHovered] = useState(false);
   
   if (!card) return null;
@@ -61,10 +67,18 @@ const Card = React.memo(({ card, index, isInHand, canDrag = true }) => {
     transform: isHovered ? 'translateY(-20px) translateX(25px) scale(1.1)' : 'none',
   };
 
+  const handleClick = (e) => {
+    e.stopPropagation(); 
+    if (onCardClick) {
+      onCardClick(index);
+    }
+  };
+
   const cardContent = (
     <div
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onClick={handleClick}
     >
       <img 
         src={imagePath}
@@ -126,15 +140,16 @@ function GameView() {
   // Setup DnD sensors with proper configuration
   const sensors = useSensors(
     useSensor(MouseSensor, {
+      // Adjust these as needed so quick clicks aren't always interpreted as a drag
       activationConstraint: {
-        distance: 10,
-        tolerance: 5,
+        distance: 10, // Minimum distance before a drag starts
+        tolerance: 5,  // Tolerance for slight movements
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 250,
-        tolerance: 5,
+        delay: 250,     // Wait before activating drag
+        tolerance: 5,   // Tolerance for slight movements
       },
     }),
     useSensor(KeyboardSensor)
@@ -490,8 +505,13 @@ function GameView() {
         card={card} 
         index={index} 
         isInHand={isInHand}
-        onDrop={handleCardDrop}
-        canDrag={isCurrentPlayer && isInHand}
+        canDrag={isCurrentPlayer && isInHand && !card.show_back && isCurrentPlayer}
+        onCardClick={
+          // We'll allow click to select if it's in your hand and the card isn't face-down, it also needs to be your turn
+          isInHand && !card.show_back && isCurrentPlayer
+            ? () => handleCardClick(index)
+            : undefined
+        }
         {...dropConfig}
       />
     );
