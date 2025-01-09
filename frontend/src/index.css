@@ -538,9 +538,15 @@ body {
 /* Chat Styles */
 .chat-section {
   margin-top: var(--spacing);
-  background-color: #f7f9fa;
+  background-color: var(--background-color);
   padding: var(--spacing);
   border-radius: var(--border-radius);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+:root[data-theme='dark'] .chat-section {
+  background-color: var(--background-color-dark);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .chat-messages {
@@ -548,21 +554,35 @@ body {
   overflow-y: auto;
   margin-bottom: var(--spacing);
   padding: 10px;
-  background-color: white;
-  border: 1px solid #ddd;
+  background-color: var(--background-color-light);
+  border: 1px solid var(--secondary-color);
   border-radius: var(--border-radius);
+}
+
+:root[data-theme='dark'] .chat-messages {
+  background-color: #2a2a2a;
+  border-color: var(--secondary-color-dark);
 }
 
 .chat-message {
   margin: 5px 0;
   padding: 5px 0;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--secondary-color);
+  color: var(--text-color);
+}
+
+:root[data-theme='dark'] .chat-message {
+  border-bottom-color: var(--secondary-color-dark);
 }
 
 .chat-username {
   font-weight: bold;
   color: var(--secondary-color);
   margin-right: 8px;
+}
+
+:root[data-theme='dark'] .chat-username {
+  color: var(--secondary-color-dark);
 }
 
 .chat-text {
@@ -577,10 +597,23 @@ body {
 .chat-input .input-field {
   flex: 1;
   margin: 0;
+  background-color: var(--background-color-light);
+  color: var(--text-color);
+  border: 1px solid var(--secondary-color);
+}
+
+:root[data-theme='dark'] .chat-input .input-field {
+  background-color: #2a2a2a;
+  border-color: var(--secondary-color-dark);
 }
 
 .chat-input .button {
   margin: 0;
+  background-color: var(--secondary-color);
+}
+
+:root[data-theme='dark'] .chat-input .button {
+  background-color: var(--secondary-color-dark);
 }
 
 .main-menu {
