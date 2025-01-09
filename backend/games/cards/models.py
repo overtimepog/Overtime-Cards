@@ -74,6 +74,12 @@ class Deck:
             print(f"Deck initialization error: {len(self.cards)} cards instead of 52")
             raise ValueError(f"Deck initialization error: {len(self.cards)} cards instead of 52")
     
+    def reset(self):
+        """Reset the deck to a new shuffled 52-card deck"""
+        self.cards = []
+        self.create_deck()
+        return self
+    
     def shuffle(self):
         """Shuffle the deck"""
         random.shuffle(self.cards)
