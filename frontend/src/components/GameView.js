@@ -17,6 +17,38 @@ import { Draggable } from './Draggable';
 import { Droppable } from './Droppable';
 import backDark from '../components/cards/back_dark.png';
 
+// CSS for card interactions
+const cardStyles = `
+  .card-container {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .card-container.clickable {
+    cursor: pointer;
+  }
+
+  .card-container.clickable .card-content {
+    transition: all 0.3s ease;
+  }
+
+  .card-container.clickable:hover .card-content {
+    transform: translateY(-10px);
+  }
+
+  .card-container.clickable:active .card-content {
+    transform: translateY(-5px);
+  }
+`;
+
+// Add styles to document
+if (!document.getElementById('card-styles')) {
+  const styleSheet = document.createElement('style');
+  styleSheet.id = 'card-styles';
+  styleSheet.textContent = cardStyles;
+  document.head.appendChild(styleSheet);
+}
+
 // Custom hook for managing all drop zones
 const useGameDropZones = (gameState, playerId) => {
   // Create an array of all possible drop zone IDs
@@ -48,7 +80,8 @@ const Card = React.memo(({
   index, 
   isInHand, 
   canDrag = true, 
-  onCardClick
+  onCardClick,
+  style = {}
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   
@@ -65,6 +98,7 @@ const Card = React.memo(({
     zIndex: isHovered ? 100 : index,
     transition: 'all 0.2s ease, z-index 0s',
     transform: isHovered ? 'translateY(-20px) translateX(25px) scale(1.1)' : 'none',
+    ...style
   };
 
   const handleClick = (e) => {
@@ -76,12 +110,15 @@ const Card = React.memo(({
   };
 
   const cardContent = (
-    <div
+    <div className="card-content"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onClick={handleClick}
       style={{ 
         cursor: onCardClick && !card.show_back ? 'pointer' : 'default',
-        pointerEvents: 'auto'
+        pointerEvents: 'auto',
+        position: 'relative',
+        transition: 'all 0.3s ease'
       }}
     >
       <img 
@@ -100,8 +137,8 @@ const Card = React.memo(({
     </div>
   );
 
-  // If card should be draggable
-  if (canDrag && !card.show_back && isInHand) {
+  // For games that need drag functionality (like Kings Corner)
+  if (canDrag && !card.show_back && isInHand && ['kings_corner', 'rummy', 'scat'].includes(gameType)) {
     return (
       <Draggable
         id={`card-${index}`}
@@ -115,22 +152,13 @@ const Card = React.memo(({
     );
   }
 
-  // If card should be selectable (but not draggable)
-  if (onCardClick && !card.show_back && isInHand) {
-    return (
-      <div 
-        style={cardStyle} 
-        className="card-container" 
-        onClick={handleClick}
-      >
-        {cardContent}
-      </div>
-    );
-  }
-
-  // Otherwise return a regular non-interactive card
+  // For all other cases, return a clickable div
   return (
-    <div style={cardStyle} className="card-container">
+    <div 
+      style={cardStyle} 
+      className={`card-container ${onCardClick && !card.show_back ? 'clickable' : ''}`}
+      onClick={handleClick}
+    >
       {cardContent}
     </div>
   );
