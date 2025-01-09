@@ -21,25 +21,17 @@ import backDark from '../components/cards/back_dark.png';
 const useGameDropZones = (gameState, playerId) => {
   // Create an array of all possible drop zone IDs
   const dropZoneIds = useMemo(() => {
+    // We only define standardZones for the "center" or game piles
     const standardZones = ['foundation', 'corner', 'meld', 'discard', 'center'];
-    const playerZones = gameState?.players 
-      ? Object.keys(gameState.players)
-          .filter(id => id !== playerId)
-          .map(id => `player-${id}`)
-      : [];
-    return [...standardZones, ...playerZones];
-  }, [gameState?.players, playerId]);
+    // No player zones - we don't want any hands to be droppable
+    return standardZones;
+  }, []);
 
   // Create a map of all drop zone data
   const dropZoneData = useMemo(() => {
     const data = {};
     dropZoneIds.forEach(id => {
-      if (id.startsWith('player-')) {
-        const playerId = id.replace('player-', '');
-        data[id] = { type: 'player', playerId };
-      } else {
-        data[id] = { type: id };
-      }
+      data[id] = { type: id };
     });
     return data;
   }, [dropZoneIds]);
@@ -462,13 +454,8 @@ function GameView() {
         break;
 
       case 'go_fish':
-        // If dropping on a player
-        if (target.playerId) {
-          handleGameAction('ask_for_cards', {
-            target_player_id: target.playerId,
-            rank: sourceCard.rank
-          });
-        }
+        // For Go Fish, we no longer allow dropping onto other players.
+        // Instead, we handle it via card selection and the dropdown menu
         break;
 
       default:
@@ -504,7 +491,7 @@ function GameView() {
         transform: 'translateX(-50%)',
         position: 'fixed',
         width: 'auto',
-        zIndex: 10
+        zIndex: 1000 // Ensure highest z-index for current player
       };
     }
     
@@ -526,17 +513,18 @@ function GameView() {
       left: `calc(50% + ${x}px)`,
       top: `calc(30% + ${y}px)`, // Position higher up
       transform: 'translate(-50%, -50%)',
-      position: 'absolute'
+      position: 'absolute',
+      zIndex: 1
     };
   };
 
   const renderPlayerHand = (player, position) => {
-    const isCurrentPlayer = player.id === playerId;
+    const thisIsCurrentPlayer = player.id === playerId;
     const hand = player.hand || [];
-    let handToRender = isCurrentPlayer ? hand : hand.map(() => ({ show_back: true }));
+    let handToRender = thisIsCurrentPlayer ? hand : hand.map(() => ({ show_back: true }));
     
     // Limit non-current player hands to 10 visible cards
-    if (!isCurrentPlayer && handToRender.length > 10) {
+    if (!thisIsCurrentPlayer && handToRender.length > 10) {
       handToRender = handToRender.slice(0, 10);
     }
     
@@ -545,35 +533,47 @@ function GameView() {
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
-      padding: '10px',
+      padding: thisIsCurrentPlayer ? '10px 10px 0 10px' : '10px',
       minWidth: '200px',
       maxWidth: '400px',
       overflow: 'visible',
-      zIndex: 1,
+      zIndex: thisIsCurrentPlayer ? 1000 : 1,
       borderRadius: '10px',
-      transition: 'border-color 0.2s ease'
+      transition: 'border-color 0.2s ease',
+      bottom: thisIsCurrentPlayer ? 0 : position.bottom // Ensure current player hand is at bottom
     };
 
     const content = (
       <div style={{
-        backgroundColor: isCurrentPlayer ? 'rgba(255,255,255,0.15)' : 'transparent',
-        borderRadius: isCurrentPlayer ? '10px 10px 0 0' : '10px',
-        padding: isCurrentPlayer ? '10px 10px 15px 10px' : '10px',
-        position: 'relative'
+        backgroundColor: thisIsCurrentPlayer ? 'rgba(255,255,255,0.15)' : 'transparent',
+        borderRadius: thisIsCurrentPlayer ? '10px 10px 0 0' : '10px',
+        padding: thisIsCurrentPlayer ? '10px 10px 15px 10px' : '10px',
+        position: 'relative',
+        zIndex: thisIsCurrentPlayer ? 1000 : 1
       }}>
         <div style={{
           display: 'flex',
           justifyContent: 'center',
           paddingLeft: handToRender.length > 1 ? '50px' : '0',
+          position: 'relative',
+          zIndex: thisIsCurrentPlayer ? 1000 : 1
         }}>
-          {handToRender.map((card, index) => (
-            <Card 
-              key={index}
-              card={card}
-              index={index}
-              isInHand={isCurrentPlayer}
-              canDrag={isCurrentPlayer && !card.show_back}
-            />
+          {handToRender.map((card, idx) => (
+            <div
+              key={idx}
+              onClick={() => thisIsCurrentPlayer && handleCardClick(idx)}
+              style={{ cursor: thisIsCurrentPlayer ? 'pointer' : 'default' }}
+            >
+              <Card 
+                card={card}
+                index={idx}
+                isInHand={thisIsCurrentPlayer}
+                canDrag={thisIsCurrentPlayer && !card.show_back}
+                style={{
+                  zIndex: thisIsCurrentPlayer ? 1000 + idx : 1 + idx
+                }}
+              />
+            </div>
           ))}
         </div>
         <div style={{
@@ -581,15 +581,17 @@ function GameView() {
           color: 'white',
           marginTop: '10px',
           fontSize: '0.9em',
-          textShadow: '1px 1px 2px rgba(0,0,0,0.5)'
+          textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
+          zIndex: thisIsCurrentPlayer ? 1000 : 1
         }}>
-          {player.name} {isCurrentPlayer ? '(You)' : `(${hand.length} cards)`}
+          {player.name} {thisIsCurrentPlayer ? '(You)' : `(${hand.length} cards)`}
           {player.is_host && ' (Host)'}
         </div>
       </div>
     );
 
-    return isCurrentPlayer ? content : renderDropZone(`player-${player.id}`, content, handStyle);
+    // Always return a regular div - no droppable zones for hands
+    return <div style={handStyle}>{content}</div>;
   };
 
   const renderGameCenter = () => {
