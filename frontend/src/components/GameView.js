@@ -366,15 +366,26 @@ function GameView() {
         return;
       }
 
-      // Send game action via WebSocket
-      ws.send(JSON.stringify({
-        type: 'game_action',
-        action_type: actionType,
-        action_data: actionData,
-        room_code: roomCode,
-        player_id: parseInt(playerId),
-        origin: window.location.origin
-      }));
+      // Send game action via HTTP endpoint instead of WebSocket
+      const response = await fetch(`${BASE_URL}/game-action/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Origin': window.location.origin
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          action_type: actionType,
+          action_data: actionData,
+          room_code: roomCode,
+          player_id: parseInt(playerId)
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to perform action');
+      }
 
     } catch (err) {
       console.error('Error performing game action:', err);
