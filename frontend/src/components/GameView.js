@@ -99,6 +99,7 @@ const Card = React.memo(({
     zIndex: isHovered ? 9999 : index,
     transition: 'all 0.2s ease',
     transform: isHovered ? 'translateY(-20px) translateX(25px) scale(1.1)' : 'none',
+    isolation: 'isolate',
     pointerEvents: 'auto',
     ...style
   };
@@ -160,11 +161,19 @@ const Card = React.memo(({
   // For all other cases, return a clickable div
   return (
     <div 
-      style={cardStyle} 
-      className={`card-container ${onCardClick && !card.show_back ? 'clickable' : ''}`}
-      onClick={handleClick}
+      style={{
+        position: 'relative',
+        zIndex: isHovered ? 9999 : index,
+        isolation: 'isolate'
+      }}
     >
-      {cardContent}
+      <div 
+        style={cardStyle} 
+        className={`card-container ${onCardClick && !card.show_back ? 'clickable' : ''}`}
+        onClick={handleClick}
+      >
+        {cardContent}
+      </div>
     </div>
   );
 });
