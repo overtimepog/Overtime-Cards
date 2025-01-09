@@ -326,10 +326,7 @@ function Lobby() {
           'Content-Type': 'application/json',
           'Origin': window.location.origin
         },
-        body: JSON.stringify({ 
-          username,
-          player_id: playerId 
-        })
+        body: JSON.stringify({ username })
       });
       
       if (!response.ok) {
