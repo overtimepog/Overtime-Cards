@@ -1003,4 +1003,52 @@ body {
   width: 20px;
   height: 20px;
   object-fit: contain;
+}
+
+.create-room, .join-room {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: var(--spacing);
+  background-color: var(--background-color);
+  border-radius: var(--border-radius);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  position: relative;
+}
+
+:root[data-theme='dark'] .create-room,
+:root[data-theme='dark'] .join-room {
+  background-color: var(--background-color-dark);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.back-button-container {
+  position: absolute;
+  top: var(--spacing);
+  left: var(--spacing);
+}
+
+.back-button {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background-color 0.3s;
+}
+
+:root[data-theme='dark'] .back-button {
+  background-color: var(--primary-color-dark);
+}
+
+.back-button:hover {
+  background-color: var(--secondary-color);
+}
+
+:root[data-theme='dark'] .back-button:hover {
+  background-color: var(--secondary-color-dark);
 } 

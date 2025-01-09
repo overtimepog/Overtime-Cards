@@ -8,6 +8,10 @@ function CreateRoom() {
 
   const BASE_URL = process.env.REACT_APP_API_URL || "https://overtime-cards-api.onrender.com/api/v1";
 
+  const handleBack = () => {
+    navigate('/');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!username.trim()) {
@@ -90,6 +94,11 @@ function CreateRoom() {
 
   return (
     <div className="create-room">
+      <div className="back-button-container">
+        <button onClick={handleBack} className="back-button">
+          ← Back
+        </button>
+      </div>
       <h2>Create a New Room</h2>
       {error && <p className="error">{error}</p>}
       <form onSubmit={handleSubmit}>

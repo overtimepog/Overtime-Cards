@@ -9,6 +9,10 @@ function JoinRoom() {
 
   const BASE_URL = process.env.REACT_APP_API_URL || "https://overtime-cards-api.onrender.com/api/v1";
 
+  const handleBack = () => {
+    navigate('/');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!roomCode.trim() || !username.trim()) {
@@ -76,6 +80,11 @@ function JoinRoom() {
 
   return (
     <div className="join-room">
+      <div className="back-button-container">
+        <button onClick={handleBack} className="back-button">
+          ← Back
+        </button>
+      </div>
       <h2>Join a Room</h2>
       {error && <p className="error">{error}</p>}
       <form onSubmit={handleSubmit}>
