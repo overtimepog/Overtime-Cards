@@ -341,34 +341,24 @@ function Lobby() {
   };
 
   return (
-    <div className="lobby" style={{
-      padding: '20px',
-      maxWidth: '1200px',
-      margin: '0 auto'
-    }}>
+    <div className="lobby">
       <div className="lobby-header">
         <h2>Game Lobby</h2>
+        <div className="room-info">
+          <p>Room Code: <span className="highlight">{roomCode}</span></p>
+          <p>Your Name: <span className="highlight">{username}</span></p>
+        </div>
         <button 
           onClick={handleLeaveRoom} 
-          className="button back-button"
+          className="button leave-room-button"
         >
           Leave Room
         </button>
       </div>
 
-      <div className="room-info">
-        <p>Room Code: <span className="highlight">{roomCode}</span></p>
-        <p>Your Name: <span className="highlight">{username}</span></p>
-      </div>
-
       {error && <p className="error">{error}</p>}
 
-      <div className="lobby-content" style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: '20px',
-        marginTop: '20px'
-      }}>
+      <div className="lobby-content">
         <div className="players-section">
           <h3>Players</h3>
           <div className="players-list">
@@ -412,44 +402,18 @@ function Lobby() {
           )}
         </div>
 
-        <div className="chat-section" style={{
-          border: '1px solid #ccc',
-          borderRadius: '8px',
-          padding: '15px',
-          backgroundColor: '#fff'
-        }}>
+        <div className="chat-section">
           <h3>Chat</h3>
-          <div className="chat-messages" style={{
-            height: '400px',
-            overflowY: 'auto',
-            marginBottom: '15px',
-            padding: '10px',
-            border: '1px solid #eee',
-            borderRadius: '4px'
-          }}>
+          <div className="chat-messages">
             {chatMessages.map((msg, index) => (
               <div 
                 key={index} 
                 className={`chat-message ${msg.isSystem ? 'system-message' : ''}`}
-                style={{
-                  marginBottom: '8px',
-                  padding: '8px',
-                  borderRadius: '4px',
-                  backgroundColor: msg.isSystem ? '#f0f0f0' : 'transparent'
-                }}
               >
-                <span className="chat-username" style={{
-                  fontWeight: 'bold',
-                  marginRight: '8px',
-                  color: msg.isSystem ? '#666' : '#333'
-                }}>{msg.username}:</span>
+                <span className="chat-username">{msg.username}:</span>
                 <span className="chat-text">{msg.message}</span>
                 {msg.timestamp && (
-                  <span className="chat-timestamp" style={{
-                    fontSize: '0.8em',
-                    color: '#666',
-                    marginLeft: '8px'
-                  }}>
+                  <span className="chat-timestamp">
                     {new Date(msg.timestamp).toLocaleTimeString()}
                   </span>
                 )}
@@ -457,10 +421,7 @@ function Lobby() {
             ))}
             <div ref={chatEndRef} />
           </div>
-          <div className="chat-input" style={{
-            display: 'flex',
-            gap: '10px'
-          }}>
+          <div className="chat-input">
             <input
               type="text"
               value={chatMessage}
@@ -469,26 +430,11 @@ function Lobby() {
               placeholder="Type a message..."
               className="input-field"
               maxLength={200}
-              style={{
-                flex: 1,
-                padding: '8px',
-                borderRadius: '4px',
-                border: '1px solid #ccc'
-              }}
             />
             <button 
               onClick={sendChatMessage} 
-              className="button"
+              className="button send-button"
               disabled={!chatMessage.trim()}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '4px',
-                backgroundColor: '#007bff',
-                color: '#fff',
-                border: 'none',
-                cursor: chatMessage.trim() ? 'pointer' : 'not-allowed',
-                opacity: chatMessage.trim() ? 1 : 0.6
-              }}
             >
               Send
             </button>
