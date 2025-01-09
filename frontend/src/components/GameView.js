@@ -127,12 +127,14 @@ const Card = React.memo(({
     position: 'relative',
     display: 'inline-block',
     marginLeft: isInHand ? '-50px' : '0',
-    zIndex: isSelected ? 9999 : isHovered ? 9998 : index,
-    transition: 'all 0.2s ease',
+    // Ensure selected cards are always on top
+    zIndex: isSelected ? 2000 + index : isHovered ? 900 + index : 100 + index,
+    // Add transition for all transformations and box-shadow
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     transform: isSelected 
-      ? 'translateY(-20px) translateX(25px) scale(1.1)' 
+      ? 'translateY(-30px) scale(1.1)' 
       : isHovered 
-        ? 'translateY(-10px) translateX(10px) scale(1.05)' 
+        ? 'translateY(-10px) scale(1.05)' 
         : 'none',
     isolation: 'isolate',
     pointerEvents: 'auto',
@@ -156,8 +158,10 @@ const Card = React.memo(({
         cursor: onCardClick && !card.show_back ? 'pointer' : 'default',
         pointerEvents: 'auto',
         position: 'relative',
-        transition: 'all 0.3s ease',
-        zIndex: isHovered ? 9999 : 'auto'
+        // Match parent transition
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        // Match parent z-index
+        zIndex: isSelected ? 2000 + index : isHovered ? 900 + index : 100 + index
       }}
     >
       <img 
@@ -168,15 +172,18 @@ const Card = React.memo(({
           width: '80px',
           height: 'auto',
           borderRadius: '8px',
+          // Enhanced box-shadow for selected state
           boxShadow: isSelected 
-            ? '0 0 0 3px white, 0 8px 16px rgba(0,0,0,0.3)'
+            ? '0 0 0 3px white, 0 0 15px rgba(255,255,255,0.5), 0 8px 16px rgba(0,0,0,0.3)'
             : isHovered 
               ? '0 8px 16px rgba(0,0,0,0.3)' 
               : '0 2px 4px rgba(0,0,0,0.1)',
-          transition: 'all 0.2s ease',
+          // Match parent transition
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           pointerEvents: 'none',
           position: 'relative',
-          zIndex: isHovered ? 9999 : 'auto'
+          // Add subtle scale animation for selected state
+          transform: isSelected ? 'scale(1.02)' : 'none'
         }}
       />
     </div>
