@@ -108,7 +108,7 @@ const useGameDropZones = (gameState, playerId) => {
 const Card = React.memo(({ 
   card, 
   index, 
-  isInHand, 
+  isInHand,
   canDrag = true, 
   onCardClick,
   style = {},
@@ -131,30 +131,33 @@ const Card = React.memo(({
     }
   };
 
+  // Only apply selection and hover effects if the card is in the player's hand
   const consolidatedStyle = {
     container: {
       position: 'relative',
-      zIndex: isSelected ? 1000 + index : (isHovered ? 900 + index : 100 + index),
+      zIndex: isInHand ? (isSelected ? 1000 + index : (isHovered ? 900 + index : 100 + index)) : 100,
       isolation: 'isolate',
       cursor: onCardClick && !card.show_back ? 'pointer' : 'default',
       pointerEvents: 'auto',
       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-      transform: isSelected ? 'translateY(-20px)' : (isHovered ? 'translateY(-10px)' : 'none'),
+      transform: isInHand ? (isSelected ? 'translateY(-20px)' : (isHovered ? 'translateY(-10px)' : 'none')) : 'none',
       ...style // Allow custom style overrides
     },
     image: {
       width: '80px',
       height: 'auto',
       borderRadius: '8px',
-      boxShadow: isSelected 
-        ? '0 0 0 3px #4CAF50, 0 0 15px rgba(76,175,80,0.5), 0 8px 16px rgba(0,0,0,0.3)'
-        : isHovered 
-          ? '0 8px 16px rgba(0,0,0,0.3)' 
-          : '0 2px 4px rgba(0,0,0,0.1)',
+      boxShadow: isInHand ? (
+        isSelected 
+          ? '0 0 0 3px #4CAF50, 0 0 15px rgba(76,175,80,0.5), 0 8px 16px rgba(0,0,0,0.3)'
+          : isHovered 
+            ? '0 8px 16px rgba(0,0,0,0.3)' 
+            : '0 2px 4px rgba(0,0,0,0.1)'
+      ) : '0 2px 4px rgba(0,0,0,0.1)',
       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
       pointerEvents: 'none',
       position: 'relative',
-      transform: isSelected ? 'scale(1.05)' : 'none'
+      transform: isInHand && isSelected ? 'scale(1.05)' : 'none'
     }
   };
 
