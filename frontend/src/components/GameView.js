@@ -500,10 +500,11 @@ function GameView() {
     if (isCurrentPlayer) {
       return {
         left: '50%',
-        bottom: '0px',
+        bottom: '0',
         transform: 'translateX(-50%)',
-        position: 'absolute',
-        paddingBottom: '10px'
+        position: 'fixed',
+        width: 'auto',
+        zIndex: 10
       };
     }
     
@@ -614,7 +615,7 @@ function GameView() {
             left: '50%',
             transform: 'translate(-50%, -50%)',
             width: '400px',
-            maxHeight: '40vh',
+            maxHeight: '60vh',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -687,7 +688,7 @@ function GameView() {
             left: '50%',
             transform: 'translate(-50%, -50%)',
             width: '200px',
-            maxHeight: '40vh',
+            maxHeight: '60vh',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -726,7 +727,7 @@ function GameView() {
             left: '50%',
             transform: 'translate(-50%, -50%)',
             width: '300px',
-            maxHeight: '40vh',
+            maxHeight: '60vh',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -782,7 +783,7 @@ function GameView() {
             alignItems: 'center',
             flexWrap: 'wrap',
             gap: '10px',
-            marginBottom: '160px' // Add space above the player's cards
+            marginBottom: '100px' // Reduced space above the player's cards
           }}>
             {[...Array(gameState.total_spoons || (Object.keys(gameState.players).length - 1))].map((_, index) => {
               const isAvailable = index < (gameState.spoons || 0);
@@ -837,7 +838,7 @@ function GameView() {
             left: '50%',
             transform: 'translate(-50%, -50%)',
             width: '400px',
-            maxHeight: '40vh',
+            maxHeight: '60vh',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -1058,7 +1059,7 @@ function GameView() {
             flexDirection: 'column',
             alignItems: 'center',
             gap: '10px',
-            marginBottom: '160px' // Add space above the player's cards
+            marginBottom: '80px' // Reduced space to fit in viewport
           }}>
             {isCurrentPlayer && (
               <button 
@@ -1092,7 +1093,7 @@ function GameView() {
             flexDirection: 'column',
             alignItems: 'center',
             gap: '10px',
-            marginBottom: '160px' // Add space above the player's cards
+            marginBottom: '100px' // Add space above the player's cards
           }}>
             {isCurrentPlayer && (
               <button 
@@ -1133,7 +1134,7 @@ function GameView() {
             flexDirection: 'column',
             alignItems: 'center',
             gap: '10px',
-            marginBottom: '160px' // Add space above the player's cards
+            marginBottom: '80px' // Reduced space to fit in viewport
           }}>
             {isCurrentPlayer && selectedCards.length === 1 && (
               <select 
@@ -1175,7 +1176,7 @@ function GameView() {
             flexDirection: 'column',
             alignItems: 'center',
             gap: '10px',
-            marginBottom: '160px' // Add space above the player's cards
+            marginBottom: '80px' // Reduced space to fit in viewport
           }}>
             {isCurrentPlayer ? (
               <>
@@ -1253,7 +1254,7 @@ function GameView() {
             flexDirection: 'column',
             alignItems: 'center',
             gap: '10px',
-            marginBottom: '160px' // Add space above the player's cards
+            marginBottom: '80px' // Reduced space to fit in viewport
           }}>
             {isCurrentPlayer && (
               <>
@@ -1366,7 +1367,7 @@ function GameView() {
   }, [gameState?.current_player, playerId]);
 
   return (
-    <div className="theme-independent">
+    <div className="theme-independent" style={{ height: '100vh', overflow: 'hidden' }}>
       <DndContext
         sensors={sensors}
         collisionDetection={collisionDetection}
@@ -1379,7 +1380,7 @@ function GameView() {
           }
         }}
       >
-        <div className="game-view">
+        <div className="game-view" style={{ height: '100%', position: 'relative' }}>
           {error && (
             <div className="error-message" style={{
               position: 'absolute',
