@@ -42,10 +42,9 @@ const useGameDropZones = (gameState, playerId) => {
   };
 };
 
-// Card component with drag and drop functionality, and clickable
-const Card = React.memo(({ card, index, isInHand, canDrag = true, onClick }) => {
+// Card component with drag and drop functionality
+const Card = React.memo(({ card, index, isInHand, canDrag = true }) => {
   const [isHovered, setIsHovered] = useState(false);
-  const [dragStartTime, setDragStartTime] = useState(null);
   
   if (!card) return null;
   
@@ -60,22 +59,12 @@ const Card = React.memo(({ card, index, isInHand, canDrag = true, onClick }) => 
     zIndex: isHovered ? 100 : index,
     transition: 'all 0.2s ease, z-index 0s',
     transform: isHovered ? 'translateY(-20px) translateX(25px) scale(1.1)' : 'none',
-    cursor: canDrag ? 'pointer' : 'default'
-  };
-
-  const handleClick = (e) => {
-    // Only trigger click if it wasn't a drag (dragStartTime will be set by Draggable)
-    if (!dragStartTime || (Date.now() - dragStartTime < 200)) {
-      onClick?.(e);
-    }
   };
 
   const cardContent = (
     <div
-      onClick={handleClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      style={{ pointerEvents: 'auto' }}
     >
       <img 
         src={imagePath}
@@ -86,8 +75,7 @@ const Card = React.memo(({ card, index, isInHand, canDrag = true, onClick }) => 
           height: 'auto',
           borderRadius: '8px',
           boxShadow: isHovered ? '0 8px 16px rgba(0,0,0,0.3)' : '0 2px 4px rgba(0,0,0,0.1)',
-          transition: 'all 0.2s ease',
-          pointerEvents: 'auto'
+          transition: 'all 0.2s ease'
         }}
       />
     </div>
@@ -101,8 +89,6 @@ const Card = React.memo(({ card, index, isInHand, canDrag = true, onClick }) => 
       style={cardStyle}
       ariaLabel={card.show_back ? "Face down card" : `${card.rank} of ${card.suit}`}
       className="card-container"
-      onDragStart={() => setDragStartTime(Date.now())}
-      onDragEnd={() => setDragStartTime(null)}
     >
       {cardContent}
     </Draggable>
@@ -132,13 +118,13 @@ function GameView() {
   const sensors = useSensors(
     useSensor(MouseSensor, {
       activationConstraint: {
-        distance: 5, // Reduced distance for better click detection
-        delay: 0,
+        distance: 10,
+        tolerance: 5,
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 150, // Reduced delay for better mobile experience
+        delay: 250,
         tolerance: 5,
       },
     }),
@@ -586,14 +572,21 @@ function GameView() {
           zIndex: thisIsCurrentPlayer ? 1000 : 1
         }}>
           {handToRender.map((card, idx) => (
-            <Card 
+            <div
               key={idx}
-              card={card}
-              index={idx}
-              isInHand={thisIsCurrentPlayer}
-              canDrag={thisIsCurrentPlayer && !card.show_back}
               onClick={() => isCurrentPlayer && handleCardClick(idx)}
-            />
+              style={{ cursor: thisIsCurrentPlayer && !card.show_back ? 'pointer' : 'default' }}
+            >
+              <Card 
+                card={card}
+                index={idx}
+                isInHand={thisIsCurrentPlayer}
+                canDrag={thisIsCurrentPlayer && !card.show_back}
+                style={{
+                  zIndex: thisIsCurrentPlayer ? 1000 + idx : 1 + idx
+                }}
+              />
+            </div>
           ))}
         </div>
         <div style={{
