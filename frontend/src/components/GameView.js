@@ -496,8 +496,8 @@ function GameView() {
       // Clear any previous errors
       setError('');
 
-      // Send game action via HTTP POST
-      const response = await fetch(`${BASE_URL}/game-action/`, {
+      // Send game action via HTTP POST with correct URL structure
+      const response = await fetch(`${BASE_URL}/rooms/${roomCode}/game-action`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -509,7 +509,6 @@ function GameView() {
             ...actionData,
             game_type: gameType
           },
-          room_code: roomCode,
           player_id: parseInt(playerId)
         })
       });
