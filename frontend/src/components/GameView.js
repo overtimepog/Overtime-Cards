@@ -13,8 +13,7 @@ import {
   rectIntersection,
   MeasuringStrategy,
 } from '@dnd-kit/core';
-import { Draggable } from './Draggable';
-import { Droppable } from './Droppable';
+import { Draggable, Droppable } from './DnD';
 import backDark from '../components/cards/back_dark.png';
 
 // CSS for card interactions
@@ -99,7 +98,11 @@ const Card = React.memo(({
     marginLeft: isInHand ? '-50px' : '0',
     zIndex: isHovered ? 9999 : index,
     transition: 'all 0.2s ease',
-    transform: (isHovered || isSelected) ? 'translateY(-20px) translateX(25px) scale(1.1)' : 'none',
+    transform: isSelected 
+      ? 'translateY(-20px) translateX(25px) scale(1.1)' 
+      : isHovered 
+        ? 'translateY(-20px) translateX(25px) scale(1.1)' 
+        : 'none',
     isolation: 'isolate',
     pointerEvents: 'auto',
     ...style
@@ -150,9 +153,10 @@ const Card = React.memo(({
 
   // For games that need drag functionality (like Kings Corner)
   if (canDrag && !card.show_back && isInHand && ['kings_corner', 'rummy', 'scat'].includes(gameType)) {
+    const cardId = `hand-card-${card.suit}_${card.rank}_${index}`;
     return (
       <Draggable
-        id={`card-${index}`}
+        id={cardId}
         data={{ card, index }}
         style={cardStyle}
         ariaLabel={card.show_back ? "Face down card" : `${card.rank} of ${card.suit}`}
@@ -196,6 +200,7 @@ function GameView() {
   const [activeDragData, setActiveDragData] = useState(null);
   const [isCurrentPlayer, setIsCurrentPlayer] = useState(false);
   const [showSets, setShowSets] = useState(false);
+  const [playerHandOrder, setPlayerHandOrder] = useState([]);
 
   // Initialize drop zones using the custom hook
   const { dropZoneData } = useGameDropZones(gameState, playerId);
@@ -248,11 +253,33 @@ function GameView() {
       return;
     }
 
-    const sourceItem = active.data.current;
-    const targetZone = dropZoneData[over.id];
+    const activeId = active.id;
+    const overId = over.id;
 
-    if (targetZone) {
-      handleCardDrop(sourceItem, targetZone);
+    // Check if both cards are from the player's hand
+    const isActiveInHand = activeId.startsWith('hand-card-');
+    const isOverInHand = overId.startsWith('hand-card-');
+
+    if (isActiveInHand && isOverInHand) {
+      setPlayerHandOrder((oldOrder) => {
+        const oldIndex = oldOrder.indexOf(activeId.replace('hand-card-', ''));
+        const newIndex = oldOrder.indexOf(overId.replace('hand-card-', ''));
+
+        if (oldIndex === -1 || newIndex === -1) return oldOrder;
+
+        const newOrder = [...oldOrder];
+        const [moved] = newOrder.splice(oldIndex, 1);
+        newOrder.splice(newIndex, 0, moved);
+        return newOrder;
+      });
+    } else {
+      // Handle drops on game zones (existing logic)
+      const sourceItem = active.data.current;
+      const targetZone = dropZoneData[over.id];
+
+      if (targetZone) {
+        handleCardDrop(sourceItem, targetZone);
+      }
     }
 
     setActiveId(null);
@@ -628,13 +655,24 @@ function GameView() {
     const thisIsCurrentPlayer = player.id === playerId;
     const isTheirTurn = player.id === gameState.current_player;
     const hand = player.hand || [];
-    let handToRender = thisIsCurrentPlayer ? hand : hand.map(() => ({ show_back: true }));
     
+    let handToRender;
+    if (thisIsCurrentPlayer) {
+      // Use playerHandOrder for the current player's hand
+      handToRender = playerHandOrder.map(cardId => {
+        const [suit, rank] = cardId.split('_');
+        return hand.find(card => card.suit === suit && card.rank === rank);
+      }).filter(Boolean);
+    } else {
+      // For other players, show backs
+      handToRender = hand.map(() => ({ show_back: true }));
+    }
+
     // Limit non-current player hands to 10 visible cards
     if (!thisIsCurrentPlayer && handToRender.length > 10) {
       handToRender = handToRender.slice(0, 10);
     }
-    
+
     const handStyle = {
       ...position,
       display: 'flex',
@@ -647,7 +685,7 @@ function GameView() {
       zIndex: thisIsCurrentPlayer ? 1000 : 1,
       borderRadius: '10px',
       transition: 'border-color 0.2s ease',
-      bottom: thisIsCurrentPlayer ? 0 : position.bottom // Ensure current player hand is at bottom
+      bottom: thisIsCurrentPlayer ? 0 : position.bottom
     };
 
     const content = (
@@ -669,7 +707,7 @@ function GameView() {
         }}>
           {handToRender.map((card, idx) => (
             <Card 
-              key={idx}
+              key={`${card.suit}_${card.rank}_${idx}`}
               card={card}
               index={idx}
               isInHand={thisIsCurrentPlayer}
@@ -705,7 +743,6 @@ function GameView() {
       </div>
     );
 
-    // Always return a regular div - no droppable zones for hands
     return <div style={handStyle}>{content}</div>;
   };
 
@@ -1608,6 +1645,33 @@ function GameView() {
       setIsCurrentPlayer(false);
     }
   }, [gameState?.current_player, playerId]);
+
+  useEffect(() => {
+    if (gameState?.players?.[playerId]?.hand) {
+      const hand = gameState.players[playerId].hand;
+      // Create unique IDs for each card based on suit and rank
+      const newOrder = hand.map((card, index) => `${card.suit}_${card.rank}_${index}`);
+      setPlayerHandOrder((prev) => {
+        // If the hand size changed, use the new order
+        if (prev.length !== newOrder.length) {
+          return newOrder;
+        }
+        
+        // Check if the cards in prev order still match the current hand
+        const currentCards = new Set(newOrder.map(id => id.split('_').slice(0, 2).join('_')));
+        const prevCards = new Set(prev.map(id => id.split('_').slice(0, 2).join('_')));
+        
+        // If the cards have changed (different suits/ranks), use the new order
+        if ([...currentCards].some(card => !prevCards.has(card)) || 
+            [...prevCards].some(card => !currentCards.has(card))) {
+          return newOrder;
+        }
+        
+        // Otherwise keep the current order
+        return prev;
+      });
+    }
+  }, [gameState, playerId]);
 
   return (
     <div className="theme-independent" style={{ height: '100vh', overflow: 'hidden' }}>
