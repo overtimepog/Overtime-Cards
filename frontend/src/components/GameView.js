@@ -660,7 +660,6 @@ function GameView() {
         transform: 'translateX(-50%)',
         position: 'fixed',
         width: 'auto',
-        zIndex: 1000 // Ensure highest z-index for current player
       };
     }
     
@@ -718,7 +717,6 @@ function GameView() {
       minWidth: '200px',
       maxWidth: '400px',
       overflow: 'visible',
-      zIndex: isCurrentPlayerHand ? 1000 : 1,
       borderRadius: '10px',
       transition: 'border-color 0.2s ease',
       bottom: isCurrentPlayerHand ? 0 : position.bottom
@@ -730,7 +728,6 @@ function GameView() {
         borderRadius: isCurrentPlayerHand ? '10px 10px 0 0' : '10px',
         padding: isCurrentPlayerHand ? '10px 10px 15px 10px' : '10px',
         position: 'relative',
-        zIndex: isCurrentPlayerHand ? 1000 : 1,
         animation: isTheirTurn ? 'glow 2s ease-in-out infinite' : 'none',
         boxShadow: isTheirTurn ? '0 0 20px #FFD700' : 'none'
       }}>
@@ -739,7 +736,6 @@ function GameView() {
           justifyContent: 'center',
           paddingLeft: handToRender.length > 1 ? '50px' : '0',
           position: 'relative',
-          zIndex: isCurrentPlayerHand ? 1000 : 1
         }}>
           {handToRender.map((card, idx) => (
             <Card 
@@ -753,9 +749,6 @@ function GameView() {
                   ? () => handleCardClick(idx)
                   : undefined
               }
-              style={{
-                zIndex: isCurrentPlayerHand ? 1000 + idx : 1 + idx
-              }}
               gameType={gameType}
             />
           ))}
@@ -766,7 +759,6 @@ function GameView() {
           marginTop: '10px',
           fontSize: '0.9em',
           textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
-          zIndex: isCurrentPlayerHand ? 1000 : 1,
           padding: '5px 15px',
           borderRadius: '15px',
           backgroundColor: isTheirTurn ? 'rgba(255, 215, 0, 0.2)' : 'transparent',
