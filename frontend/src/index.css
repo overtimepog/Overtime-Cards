@@ -1226,4 +1226,40 @@ body {
 
 :root[data-theme='dark'] .back-button:hover {
   background-color: var(--secondary-color-dark);
+}
+
+.set-rank {
+  background-color: var(--secondary-color);
+  color: white;
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--border-radius);
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.suit {
+  font-size: 1.1em;
+}
+
+.suit.hearts,
+.suit.diamonds {
+  color: #ff5555;
+}
+
+.suit.clubs,
+.suit.spades {
+  color: #ffffff;
+}
+
+/* For dark theme */
+:root[data-theme='dark'] .suit.hearts,
+:root[data-theme='dark'] .suit.diamonds {
+  color: #ff8888;
+}
+
+:root[data-theme='dark'] .suit.clubs,
+:root[data-theme='dark'] .suit.spades {
+  color: #ffffff;
 } 

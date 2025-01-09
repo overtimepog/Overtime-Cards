@@ -108,6 +108,7 @@ function GameView() {
   const [activeId, setActiveId] = useState(null);
   const [activeDragData, setActiveDragData] = useState(null);
   const [isCurrentPlayer, setIsCurrentPlayer] = useState(false);
+  const [showSets, setShowSets] = useState(false);
 
   // Initialize drop zones using the custom hook
   const { dropZoneData } = useGameDropZones(gameState, playerId);
@@ -519,6 +520,7 @@ function GameView() {
 
   const renderPlayerHand = (player, position) => {
     const thisIsCurrentPlayer = player.id === playerId;
+    const isTheirTurn = player.id === gameState.current_player;
     const hand = player.hand || [];
     let handToRender = thisIsCurrentPlayer ? hand : hand.map(() => ({ show_back: true }));
     
@@ -548,7 +550,9 @@ function GameView() {
         borderRadius: thisIsCurrentPlayer ? '10px 10px 0 0' : '10px',
         padding: thisIsCurrentPlayer ? '10px 10px 15px 10px' : '10px',
         position: 'relative',
-        zIndex: thisIsCurrentPlayer ? 1000 : 1
+        zIndex: thisIsCurrentPlayer ? 1000 : 1,
+        animation: isTheirTurn ? 'glow 2s ease-in-out infinite' : 'none',
+        boxShadow: isTheirTurn ? '0 0 20px #FFD700' : 'none'
       }}>
         <div style={{
           display: 'flex',
@@ -581,7 +585,12 @@ function GameView() {
           marginTop: '10px',
           fontSize: '0.9em',
           textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
-          zIndex: thisIsCurrentPlayer ? 1000 : 1
+          zIndex: thisIsCurrentPlayer ? 1000 : 1,
+          padding: '5px 15px',
+          borderRadius: '15px',
+          backgroundColor: isTheirTurn ? 'rgba(255, 215, 0, 0.2)' : 'transparent',
+          border: isTheirTurn ? '1px solid rgba(255, 215, 0, 0.5)' : 'none',
+          transition: 'all 0.3s ease'
         }}>
           {player.name} {thisIsCurrentPlayer ? '(You)' : `(${hand.length} cards)`}
           {player.is_host && ' (Host)'}
@@ -1030,6 +1039,125 @@ function GameView() {
           </div>
         );
 
+      case 'go_fish':
+        return (
+          <div className="go-fish-center" style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '400px',
+            maxHeight: '60vh',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '20px',
+            justifyContent: 'center'
+          }}>
+            {/* Draw pile */}
+            <div 
+              className="draw-pile"
+              onClick={() => isCurrentPlayer && handleGameAction('draw_card')}
+              style={{
+                position: 'relative',
+                cursor: isCurrentPlayer ? 'pointer' : 'default',
+                transition: 'transform 0.2s',
+                transform: isCurrentPlayer ? 'scale(1.05)' : 'scale(1)',
+              }}
+            >
+              {gameState.deck?.cards_remaining > 0 && (
+                <Card 
+                  card={{
+                    show_back: true,
+                    image_back: backDark
+                  }}
+                  index={0}
+                  canDrag={false}
+                />
+              )}
+              <div style={{
+                position: 'absolute',
+                bottom: '-25px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                color: 'white',
+                fontSize: '0.8em'
+              }}>
+                Draw ({gameState.deck?.cards_remaining || 0})
+              </div>
+            </div>
+
+            {/* Game info */}
+            {gameState.last_play && (
+              <div style={{
+                color: 'white',
+                textAlign: 'center',
+                padding: '10px',
+                backgroundColor: 'rgba(0,0,0,0.3)',
+                borderRadius: '5px',
+                marginTop: '20px'
+              }}>
+                {gameState.last_play.success ? (
+                  <>
+                    {gameState.players[gameState.last_play.player]?.name} got {gameState.last_play.count} {gameState.last_play.rank}{gameState.last_play.count !== 1 ? 's' : ''} from {gameState.players[gameState.last_play.target]?.name}
+                  </>
+                ) : (
+                  <>
+                    {gameState.players[gameState.last_play.player]?.name} asked {gameState.players[gameState.last_play.target]?.name} for {gameState.last_play.rank}s - Go Fish!
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* View Sets Button */}
+            {Object.entries(gameState.completed_sets || {}).length > 0 && (
+              <button
+                onClick={() => setShowSets(true)}
+                className="view-sets-button"
+              >
+                View Completed Sets
+              </button>
+            )}
+
+            {/* Sets Overlay */}
+            {showSets && (
+              <div className="overlay" onClick={() => setShowSets(false)}>
+                <div className="overlay-content" onClick={e => e.stopPropagation()}>
+                  <h3>Completed Sets</h3>
+                  <div className="sets-grid">
+                    {Object.entries(gameState.completed_sets).map(([pid, sets]) => (
+                      <div key={pid} className="player-sets">
+                        <div className="player-name">{gameState.players[pid]?.name}</div>
+                        <div className="sets-count">Sets: {sets.length}</div>
+                        <div className="sets-list">
+                          {sets.map((set, index) => (
+                            <div key={index} className="set-rank">
+                              {set.rank}
+                              <span className={`suit ${set.suit.toLowerCase()}`}>
+                                {set.suit === 'HEARTS' ? '♥' : 
+                                 set.suit === 'DIAMONDS' ? '♦' : 
+                                 set.suit === 'CLUBS' ? '♣' : 
+                                 set.suit === 'SPADES' ? '♠' : 
+                                 set.suit}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <button 
+                    className="close-button"
+                    onClick={() => setShowSets(false)}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
       default:
         return (
           <div className="unsupported-game" style={{
@@ -1135,7 +1263,10 @@ function GameView() {
             flexDirection: 'column',
             alignItems: 'center',
             gap: '10px',
-            marginBottom: '80px' // Reduced space to fit in viewport
+            marginBottom: '80px', // Reduced space to fit in viewport
+            opacity: isCurrentPlayer && selectedCards.length === 1 ? '1' : '0',
+            visibility: isCurrentPlayer && selectedCards.length === 1 ? 'visible' : 'hidden',
+            transition: 'opacity 0.3s ease, visibility 0.3s ease'
           }}>
             {isCurrentPlayer && selectedCards.length === 1 && (
               <select 
