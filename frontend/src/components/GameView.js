@@ -1364,10 +1364,14 @@ function GameView() {
             flexDirection: 'column',
             alignItems: 'center',
             gap: '10px',
-            marginBottom: '80px', // Reduced space to fit in viewport
+            position: 'absolute',
+            bottom: '140px',
+            left: '50%',
+            transform: 'translateX(-50%)',
             opacity: isCurrentPlayer && selectedCards.length === 1 ? '1' : '0',
             visibility: isCurrentPlayer && selectedCards.length === 1 ? 'visible' : 'hidden',
-            transition: 'opacity 0.3s ease, visibility 0.3s ease'
+            transition: 'opacity 0.3s ease, visibility 0.3s ease',
+            zIndex: 10000
           }}>
             {isCurrentPlayer && selectedCards.length === 1 && (
               <select 
