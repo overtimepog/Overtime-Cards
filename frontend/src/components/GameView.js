@@ -496,13 +496,14 @@ function GameView() {
     const myIndex = playerIds.indexOf(playerId);
     const isCurrentPlayer = playerIds[index] === playerId;
     
-    // If this is the current player, position at bottom
+    // If this is the current player, position at bottom edge
     if (isCurrentPlayer) {
       return {
         left: '50%',
-        bottom: '20px',
+        bottom: '0px',
         transform: 'translateX(-50%)',
-        position: 'absolute'
+        position: 'absolute',
+        paddingBottom: '10px'
       };
     }
     
@@ -554,9 +555,9 @@ function GameView() {
 
     const content = (
       <div style={{
-        backgroundColor: isCurrentPlayer ? 'rgba(255,255,255,0.1)' : 'transparent',
-        borderRadius: '10px',
-        padding: '10px',
+        backgroundColor: isCurrentPlayer ? 'rgba(255,255,255,0.15)' : 'transparent',
+        borderRadius: isCurrentPlayer ? '10px 10px 0 0' : '10px',
+        padding: isCurrentPlayer ? '10px 10px 15px 10px' : '10px',
         position: 'relative'
       }}>
         <div style={{
@@ -780,7 +781,8 @@ function GameView() {
             justifyContent: 'center',
             alignItems: 'center',
             flexWrap: 'wrap',
-            gap: '10px'
+            gap: '10px',
+            marginBottom: '160px' // Add space above the player's cards
           }}>
             {[...Array(gameState.total_spoons || (Object.keys(gameState.players).length - 1))].map((_, index) => {
               const isAvailable = index < (gameState.spoons || 0);
@@ -1055,7 +1057,8 @@ function GameView() {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '10px'
+            gap: '10px',
+            marginBottom: '160px' // Add space above the player's cards
           }}>
             {isCurrentPlayer && (
               <button 
@@ -1088,7 +1091,8 @@ function GameView() {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '10px'
+            gap: '10px',
+            marginBottom: '160px' // Add space above the player's cards
           }}>
             {isCurrentPlayer && (
               <button 
@@ -1128,7 +1132,8 @@ function GameView() {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '10px'
+            gap: '10px',
+            marginBottom: '160px' // Add space above the player's cards
           }}>
             {isCurrentPlayer && selectedCards.length === 1 && (
               <select 
@@ -1169,7 +1174,8 @@ function GameView() {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '10px'
+            gap: '10px',
+            marginBottom: '160px' // Add space above the player's cards
           }}>
             {isCurrentPlayer ? (
               <>
@@ -1246,7 +1252,8 @@ function GameView() {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '10px'
+            gap: '10px',
+            marginBottom: '160px' // Add space above the player's cards
           }}>
             {isCurrentPlayer && (
               <>
@@ -1441,4 +1448,4 @@ function GameView() {
   );
 }
 
-export default GameView; 
+export default GameView;
