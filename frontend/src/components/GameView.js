@@ -575,8 +575,8 @@ function GameView() {
           {handToRender.map((card, idx) => (
             <div
               key={idx}
-              onClick={() => thisIsCurrentPlayer && handleCardClick(idx)}
-              style={{ cursor: thisIsCurrentPlayer ? 'pointer' : 'default' }}
+              onClick={() => isCurrentPlayer && handleCardClick(idx)}
+              style={{ cursor: thisIsCurrentPlayer && !card.show_back ? 'pointer' : 'default' }}
             >
               <Card 
                 card={card}
@@ -875,12 +875,12 @@ function GameView() {
               {/* Draw pile */}
               <div 
                 className="draw-pile"
-                onClick={() => isCurrentPlayer && gameType !== 'go_fish' && handleGameAction('draw_card')}
+                onClick={() => isCurrentPlayer && handleGameAction('draw_card')}
                 style={{
                   position: 'relative',
-                  cursor: isCurrentPlayer && gameType !== 'go_fish' ? 'pointer' : 'default',
+                  cursor: isCurrentPlayer ? 'pointer' : 'default',
                   transition: 'transform 0.2s',
-                  transform: isCurrentPlayer && gameType !== 'go_fish' ? 'scale(1.05)' : 'scale(1)',
+                  transform: isCurrentPlayer ? 'scale(1.05)' : 'scale(1)',
                 }}
               >
                 {gameState.deck?.cards_remaining > 0 && (
@@ -1068,12 +1068,12 @@ function GameView() {
             {/* Draw pile */}
             <div 
               className="draw-pile"
-              onClick={() => isCurrentPlayer && gameType !== 'go_fish' && handleGameAction('draw_card')}
+              onClick={() => isCurrentPlayer && handleGameAction('draw_card')}
               style={{
                 position: 'relative',
-                cursor: isCurrentPlayer && gameType !== 'go_fish' ? 'pointer' : 'default',
+                cursor: isCurrentPlayer ? 'pointer' : 'default',
                 transition: 'transform 0.2s',
-                transform: isCurrentPlayer && gameType !== 'go_fish' ? 'scale(1.05)' : 'scale(1)',
+                transform: isCurrentPlayer ? 'scale(1.05)' : 'scale(1)',
               }}
             >
               {gameState.deck?.cards_remaining > 0 && (
