@@ -156,6 +156,8 @@ body {
   max-width: 1200px;
   margin: 0 auto;
   padding: var(--spacing);
+  background-color: #1a6f3c;
+  color: #ffffff;
 }
 
 .game-header {
@@ -648,4 +650,11 @@ body {
   color: #28a745;
   margin-top: 1rem;
   text-align: center;
+}
+
+/* Theme Independent Container */
+.theme-independent {
+  /* Set fixed colors that won't change with theme */
+  background-color: #1a6f3c;
+  color: #ffffff;
 } 

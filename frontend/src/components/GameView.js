@@ -1351,94 +1351,85 @@ function GameView() {
   }, [gameState?.current_player, playerId]);
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={collisionDetection}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-      onDragCancel={handleDragCancel}
-      measuring={{
-        droppable: {
-          strategy: MeasuringStrategy.Always
-        }
-      }}
-    >
-      <div className="game-view" style={{
-        position: 'relative',
-        width: '100%',
-        backgroundColor: '#2c5530',
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: '100vh',
-        height: '100%',
-        padding: '20px'
-      }}>
-        {error && (
-          <div className="error-message" style={{
-            position: 'absolute',
-            top: '20px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            backgroundColor: 'rgba(255,0,0,0.8)',
-            color: 'white',
-            padding: '10px 20px',
-            borderRadius: '5px',
-            zIndex: 100
-          }}>
-            {error}
-          </div>
-        )}
+    <div className="theme-independent">
+      <DndContext
+        sensors={sensors}
+        collisionDetection={collisionDetection}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+        measuring={{
+          droppable: {
+            strategy: MeasuringStrategy.Always
+          }
+        }}
+      >
+        <div className="game-view">
+          {error && (
+            <div className="error-message" style={{
+              position: 'absolute',
+              top: '20px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              backgroundColor: 'rgba(255,0,0,0.8)',
+              color: 'white',
+              padding: '10px 20px',
+              borderRadius: '5px',
+              zIndex: 100
+            }}>
+              {error}
+            </div>
+          )}
 
-        {/* Game center area */}
-        {renderGameCenter()}
+          {/* Game center area */}
+          {renderGameCenter()}
 
-        {/* Players around the table */}
-        {gameState && Object.entries(gameState.players).map(([id, player], index) => {
-          const position = calculatePlayerPosition(
-            index,
-            Object.keys(gameState.players).length
-          );
-          return renderPlayerHand(
-            { ...player, id },
-            position
-          );
-        })}
+          {/* Players around the table */}
+          {gameState && Object.entries(gameState.players).map(([id, player], index) => {
+            const position = calculatePlayerPosition(
+              index,
+              Object.keys(gameState.players).length
+            );
+            return renderPlayerHand(
+              { ...player, id },
+              position
+            );
+          })}
 
-        {/* Leave Game button */}
-        <button
-          onClick={handleLeaveGame}
-          className="leave-game"
-          style={{
-            position: 'fixed',
-            top: '20px',
-            left: '20px',
-            padding: '10px 20px',
-            backgroundColor: '#dc3545',
-            color: 'white',
-            border: 'none',
-            borderRadius: '5px',
-            cursor: 'pointer',
-            zIndex: 1000,
-            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-          }}
-        >
-          Leave Game
-        </button>
+          {/* Leave Game button */}
+          <button
+            onClick={handleLeaveGame}
+            className="leave-game"
+            style={{
+              position: 'fixed',
+              top: '20px',
+              left: '20px',
+              padding: '10px 20px',
+              backgroundColor: '#dc3545',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: 'pointer',
+              zIndex: 1000,
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+            }}
+          >
+            Leave Game
+          </button>
 
-        {renderGameControls()}
-      </div>
-      <DragOverlay dropAnimation={dropAnimation}>
-        {activeId ? (
-          <Card
-            card={activeDragData.card}
-            index={activeDragData.index}
-            isInHand={false}
-            canDrag={false}
-          />
-        ) : null}
-      </DragOverlay>
-    </DndContext>
+          {renderGameControls()}
+        </div>
+        <DragOverlay dropAnimation={dropAnimation}>
+          {activeId ? (
+            <Card
+              card={activeDragData?.card}
+              index={activeDragData?.index}
+              isInHand={false}
+            />
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+    </div>
   );
 }
 
