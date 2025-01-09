@@ -158,6 +158,12 @@ body {
   padding: var(--spacing);
   background-color: #1a6f3c;
   color: #ffffff;
+  min-height: 100vh;
+  position: relative;
+}
+
+:root[data-theme='dark'] .game-view {
+  background-color: #0f4724;
 }
 
 .game-header {
@@ -289,10 +295,15 @@ body {
 }
 
 .players-section {
-  background-color: white;
+  background-color: var(--background-color-light);
   padding: var(--spacing);
   border-radius: var(--border-radius);
-  margin-bottom: var(--spacing);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+:root[data-theme='dark'] .players-section {
+  background-color: #2a2a2a;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .players-list {
@@ -302,7 +313,7 @@ body {
 }
 
 .player {
-  background-color: #f8f9fa;
+  background-color: var(--background-color-light);
   padding: 10px;
   border-radius: var(--border-radius);
   display: flex;
@@ -311,9 +322,18 @@ body {
   transition: all 0.3s ease;
 }
 
+:root[data-theme='dark'] .player {
+  background-color: #2a2a2a;
+}
+
 .player.current {
   background-color: #e8f5e9;
   border: 2px solid #2ecc71;
+}
+
+:root[data-theme='dark'] .player.current {
+  background-color: #1b5e20;
+  border-color: #4caf50;
 }
 
 .player-badges {
@@ -706,4 +726,22 @@ body {
   /* Set fixed colors that won't change with theme */
   background-color: #1a6f3c;
   color: #ffffff;
+}
+
+/* Card styles in dark mode */
+:root[data-theme='dark'] .card-image {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+:root[data-theme='dark'] .card:hover .card-image {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6);
+}
+
+/* Game controls in dark mode */
+:root[data-theme='dark'] .game-controls button {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+:root[data-theme='dark'] .game-controls button:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
 } 
