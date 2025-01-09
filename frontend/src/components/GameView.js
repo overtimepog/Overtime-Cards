@@ -134,11 +134,12 @@ const Card = React.memo(({
   const consolidatedStyle = {
     container: {
       position: 'relative',
-      zIndex: isHovered ? 900 + index : 100 + index,
+      zIndex: isSelected ? 1000 + index : (isHovered ? 900 + index : 100 + index),
       isolation: 'isolate',
       cursor: onCardClick && !card.show_back ? 'pointer' : 'default',
       pointerEvents: 'auto',
       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+      transform: isSelected ? 'translateY(-20px)' : (isHovered ? 'translateY(-10px)' : 'none'),
       ...style // Allow custom style overrides
     },
     image: {
@@ -146,14 +147,14 @@ const Card = React.memo(({
       height: 'auto',
       borderRadius: '8px',
       boxShadow: isSelected 
-        ? '0 0 0 3px white, 0 0 15px rgba(255,255,255,0.5), 0 8px 16px rgba(0,0,0,0.3)'
+        ? '0 0 0 3px #4CAF50, 0 0 15px rgba(76,175,80,0.5), 0 8px 16px rgba(0,0,0,0.3)'
         : isHovered 
           ? '0 8px 16px rgba(0,0,0,0.3)' 
           : '0 2px 4px rgba(0,0,0,0.1)',
       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
       pointerEvents: 'none',
       position: 'relative',
-      transform: isSelected ? 'scale(1.02)' : 'none'
+      transform: isSelected ? 'scale(1.05)' : 'none'
     }
   };
 
