@@ -99,6 +99,7 @@ const Card = React.memo(({
     zIndex: isHovered ? 9999 : index,
     transition: 'all 0.2s ease',
     transform: isHovered ? 'translateY(-20px) translateX(25px) scale(1.1)' : 'none',
+    pointerEvents: 'auto',
     ...style
   };
 
@@ -119,7 +120,8 @@ const Card = React.memo(({
         cursor: onCardClick && !card.show_back ? 'pointer' : 'default',
         pointerEvents: 'auto',
         position: 'relative',
-        transition: 'all 0.3s ease'
+        transition: 'all 0.3s ease',
+        zIndex: isHovered ? 9999 : 'auto'
       }}
     >
       <img 
@@ -132,7 +134,9 @@ const Card = React.memo(({
           borderRadius: '8px',
           boxShadow: isHovered ? '0 8px 16px rgba(0,0,0,0.3)' : '0 2px 4px rgba(0,0,0,0.1)',
           transition: 'all 0.2s ease',
-          pointerEvents: 'none' // Prevent img from capturing clicks
+          pointerEvents: 'none',
+          position: 'relative',
+          zIndex: isHovered ? 9999 : 'auto'
         }}
       />
     </div>
