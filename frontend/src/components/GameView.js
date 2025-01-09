@@ -127,12 +127,12 @@ const Card = React.memo(({
     position: 'relative',
     display: 'inline-block',
     marginLeft: isInHand ? '-50px' : '0',
-    zIndex: isHovered ? 9999 : index,
+    zIndex: isSelected ? 9999 : isHovered ? 9998 : index,
     transition: 'all 0.2s ease',
     transform: isSelected 
       ? 'translateY(-20px) translateX(25px) scale(1.1)' 
       : isHovered 
-        ? 'translateY(-20px) translateX(25px) scale(1.1)' 
+        ? 'translateY(-10px) translateX(10px) scale(1.05)' 
         : 'none',
     isolation: 'isolate',
     pointerEvents: 'auto',
@@ -539,20 +539,16 @@ function GameView() {
     }
   };
 
-  const handleCardClick = (cardIndex) => {
+  const handleCardClick = (cardIndex) => { //after its clicked / selected it will be added to the selectedCards array, it then needs to have new css applied to position its z index above the rest and keep it in the same position till its clicked again
     if (!gameState?.players?.[playerId]?.hand) return;
     
     if (gameType === 'go_fish') {
-      // Toggle single-card selection
-      if (selectedCards.includes(cardIndex)) {
-        // If already selected, unselect
-        setSelectedCards([]);
-      } else {
-        // Otherwise select this card alone
-        setSelectedCards([cardIndex]);
-      }
+      // For Go Fish, only allow single card selection
+      setSelectedCards(prev => 
+        prev.includes(cardIndex) ? [] : [cardIndex]
+      );
     } else {
-      // In other games, allow multi-select toggling
+      // For other games, allow multiple card selection
       setSelectedCards(prev => {
         const isSelected = prev.includes(cardIndex);
         if (isSelected) {
