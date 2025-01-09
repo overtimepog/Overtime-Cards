@@ -493,29 +493,43 @@ function GameView() {
 
   const handleGameAction = async (actionType, actionData = {}) => {
     try {
-      if (!ws || ws.readyState !== WebSocket.OPEN) {
-        setError('Connection to game server lost. Please refresh the page.');
-        return;
-      }
-
       // Clear any previous errors
       setError('');
 
-      // Send game action via WebSocket
-      ws.send(JSON.stringify({
-        type: 'game_action',
-        action_type: actionType,
-        action_data: {
-          ...actionData,
-          game_type: gameType // Include game type with every action
+      // Send game action via HTTP POST
+      const response = await fetch(`${BASE_URL}/game-action/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Origin': window.location.origin
         },
-        room_code: roomCode,
-        player_id: parseInt(playerId)
-      }));
+        body: JSON.stringify({
+          action_type: actionType,
+          action_data: {
+            ...actionData,
+            game_type: gameType
+          },
+          room_code: roomCode,
+          player_id: parseInt(playerId)
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to perform action');
+      }
+
+      // Process response if needed
+      const result = await response.json();
+      
+      // If the action was related to card selection, reset selection
+      if (actionType.includes('card')) {
+        setSelectedCards([]);
+      }
 
     } catch (err) {
       console.error('Error performing game action:', err);
-      setError('Failed to perform action. Please try again.');
+      setError(err.message || 'Failed to perform action. Please try again.');
       
       // If the action was related to card selection, reset selection
       if (actionType.includes('card')) {
