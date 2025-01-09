@@ -68,8 +68,9 @@ const Card = React.memo(({
   };
 
   const handleClick = (e) => {
+    e.preventDefault();
     e.stopPropagation(); 
-    if (onCardClick) {
+    if (onCardClick && !card.show_back) {
       onCardClick(index);
     }
   };
@@ -79,6 +80,7 @@ const Card = React.memo(({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={handleClick}
+      style={{ cursor: onCardClick && !card.show_back ? 'pointer' : 'default' }}
     >
       <img 
         src={imagePath}
@@ -89,7 +91,8 @@ const Card = React.memo(({
           height: 'auto',
           borderRadius: '8px',
           boxShadow: isHovered ? '0 8px 16px rgba(0,0,0,0.3)' : '0 2px 4px rgba(0,0,0,0.1)',
-          transition: 'all 0.2s ease'
+          transition: 'all 0.2s ease',
+          pointerEvents: 'none' // Prevent img from capturing clicks
         }}
       />
     </div>
@@ -98,7 +101,7 @@ const Card = React.memo(({
   // If card shouldn't be draggable, return a regular div
   if (!canDrag || card.show_back) {
     return (
-      <div style={cardStyle} className="card-container">
+      <div style={cardStyle} className="card-container" onClick={handleClick}>
         {cardContent}
       </div>
     );
@@ -112,6 +115,7 @@ const Card = React.memo(({
       style={cardStyle}
       ariaLabel={card.show_back ? "Face down card" : `${card.rank} of ${card.suit}`}
       className="card-container"
+      onClick={handleClick}
     >
       {cardContent}
     </Draggable>
