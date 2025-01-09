@@ -1371,7 +1371,7 @@ function GameView() {
             alignItems: 'center',
             gap: '10px',
             position: 'absolute',
-            bottom: '100px',
+            bottom: '250px',
             left: '50%',
             transform: 'translateX(-50%)',
             opacity: isCurrentPlayer && selectedCards.length === 1 ? '1' : '0',
