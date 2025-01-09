@@ -401,7 +401,6 @@ function GameView() {
   const handleCardDrop = (source, target) => {
     if (!gameState?.players?.[playerId]?.hand) return;
     
-    const sourceCard = source.card;
     const sourceIndex = source.index;
     const targetCard = target.card;
     const targetIndex = target.index;
