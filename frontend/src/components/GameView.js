@@ -98,7 +98,7 @@ const Card = React.memo(({
     marginLeft: isInHand ? '-50px' : '0',
     zIndex: isHovered ? 100 : index,
     transition: 'all 0.2s ease, z-index 0s',
-    transform: isHovered ? 'translateY(-20px) translateX(25px) scale(1.1)' : 'none',
+    transform: isHovered ? 'translateY(-20px) translateX(25px) scale(1.1) z-index: 100' : 'none',
     ...style
   };
 
