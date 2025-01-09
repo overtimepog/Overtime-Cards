@@ -13,7 +13,6 @@ import {
   rectIntersection,
   MeasuringStrategy,
 } from '@dnd-kit/core';
-import { Draggable, Droppable } from './DnD';
 import backDark from '../components/cards/back_dark.png';
 
 // CSS for card interactions
@@ -46,6 +45,38 @@ if (!document.getElementById('card-styles')) {
   styleSheet.id = 'card-styles';
   styleSheet.textContent = cardStyles;
   document.head.appendChild(styleSheet);
+}
+
+// --- Draggable / Droppable placeholder components ---
+function Draggable({ id, data, style, ariaLabel, className, children }) {
+  // This is a simple pass-through; DnD-kit handles the actual logic via DndContext
+  return (
+    <div
+      id={id}
+      data-dndkit-draggable
+      data-drag-data={JSON.stringify(data)}
+      style={style}
+      role="button"
+      aria-label={ariaLabel}
+      className={className}
+    >
+      {children}
+    </div>
+  );
+}
+
+function Droppable({ id, data, style, ariaLabel, children }) {
+  return (
+    <div
+      id={id}
+      data-dndkit-droppable
+      data-drop-data={JSON.stringify(data)}
+      style={style}
+      aria-label={ariaLabel}
+    >
+      {children}
+    </div>
+  );
 }
 
 // Custom hook for managing all drop zones
@@ -151,8 +182,8 @@ const Card = React.memo(({
     </div>
   );
 
-  // For games that need drag functionality (like Kings Corner)
-  if (canDrag && !card.show_back && isInHand && ['kings_corner', 'rummy', 'scat'].includes(gameType)) {
+  // Now allow dragging for any game (as long as it's your card, not face-down, etc.)
+  if (canDrag && !card.show_back && isInHand) {
     const cardId = `hand-card-${card.suit}_${card.rank}_${index}`;
     return (
       <Draggable
@@ -198,7 +229,7 @@ function GameView() {
   const { username, gameType } = location.state || {};
   const [activeId, setActiveId] = useState(null);
   const [activeDragData, setActiveDragData] = useState(null);
-  const [isCurrentPlayer, setIsCurrentPlayer] = useState(false);
+  const [isCurrentPlayerTurn, setIsCurrentPlayerTurn] = useState(false);
   const [showSets, setShowSets] = useState(false);
   const [playerHandOrder, setPlayerHandOrder] = useState([]);
 
@@ -512,15 +543,22 @@ function GameView() {
     if (!gameState?.players?.[playerId]?.hand) return;
     
     if (gameType === 'go_fish') {
-      setSelectedCards([cardIndex]); // Only allow one card selected at a time for Go Fish
+      // Toggle single-card selection
+      if (selectedCards.includes(cardIndex)) {
+        // If already selected, unselect
+        setSelectedCards([]);
+      } else {
+        // Otherwise select this card alone
+        setSelectedCards([cardIndex]);
+      }
     } else {
+      // In other games, allow multi-select toggling
       setSelectedCards(prev => {
         const isSelected = prev.includes(cardIndex);
         if (isSelected) {
           return prev.filter(i => i !== cardIndex);
-        } else {
-          return [...prev, cardIndex];
         }
+        return [...prev, cardIndex];
       });
     }
   };
@@ -597,10 +635,10 @@ function GameView() {
         card={card} 
         index={index} 
         isInHand={isInHand}
-        canDrag={isCurrentPlayer && isInHand && !card.show_back && isCurrentPlayer}
+        canDrag={isCurrentPlayerTurn && isInHand && !card.show_back}
         onCardClick={
           // We'll allow click to select if it's in your hand and the card isn't face-down, it also needs to be your turn
-          isInHand && !card.show_back && isCurrentPlayer
+          isInHand && !card.show_back && isCurrentPlayerTurn
             ? () => handleCardClick(index)
             : undefined
         }
@@ -614,10 +652,10 @@ function GameView() {
   const calculatePlayerPosition = (index, totalPlayers, radius = 300) => {
     const playerIds = Object.keys(gameState.players);
     const myIndex = playerIds.indexOf(playerId);
-    const isCurrentPlayer = playerIds[index] === playerId;
+    const isCurrentPlayerHand = playerIds[index] === playerId;
     
     // If this is the current player, position at bottom edge
-    if (isCurrentPlayer) {
+    if (isCurrentPlayerHand) {
       return {
         left: '50%',
         bottom: '0',
@@ -652,12 +690,12 @@ function GameView() {
   };
 
   const renderPlayerHand = (player, position) => {
-    const thisIsCurrentPlayer = player.id === playerId;
+    const isCurrentPlayerHand = player.id === playerId;
     const isTheirTurn = player.id === gameState.current_player;
     const hand = player.hand || [];
     
     let handToRender;
-    if (thisIsCurrentPlayer) {
+    if (isCurrentPlayerHand) {
       // Use playerHandOrder for the current player's hand
       handToRender = playerHandOrder.map(cardId => {
         const [suit, rank] = cardId.split('_');
@@ -669,7 +707,7 @@ function GameView() {
     }
 
     // Limit non-current player hands to 10 visible cards
-    if (!thisIsCurrentPlayer && handToRender.length > 10) {
+    if (!isCurrentPlayerHand && handToRender.length > 10) {
       handToRender = handToRender.slice(0, 10);
     }
 
@@ -678,23 +716,23 @@ function GameView() {
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
-      padding: thisIsCurrentPlayer ? '10px 10px 0 10px' : '10px',
+      padding: isCurrentPlayerHand ? '10px 10px 0 10px' : '10px',
       minWidth: '200px',
       maxWidth: '400px',
       overflow: 'visible',
-      zIndex: thisIsCurrentPlayer ? 1000 : 1,
+      zIndex: isCurrentPlayerHand ? 1000 : 1,
       borderRadius: '10px',
       transition: 'border-color 0.2s ease',
-      bottom: thisIsCurrentPlayer ? 0 : position.bottom
+      bottom: isCurrentPlayerHand ? 0 : position.bottom
     };
 
     const content = (
       <div style={{
-        backgroundColor: thisIsCurrentPlayer ? 'rgba(255,255,255,0.15)' : 'transparent',
-        borderRadius: thisIsCurrentPlayer ? '10px 10px 0 0' : '10px',
-        padding: thisIsCurrentPlayer ? '10px 10px 15px 10px' : '10px',
+        backgroundColor: isCurrentPlayerHand ? 'rgba(255,255,255,0.15)' : 'transparent',
+        borderRadius: isCurrentPlayerHand ? '10px 10px 0 0' : '10px',
+        padding: isCurrentPlayerHand ? '10px 10px 15px 10px' : '10px',
         position: 'relative',
-        zIndex: thisIsCurrentPlayer ? 1000 : 1,
+        zIndex: isCurrentPlayerHand ? 1000 : 1,
         animation: isTheirTurn ? 'glow 2s ease-in-out infinite' : 'none',
         boxShadow: isTheirTurn ? '0 0 20px #FFD700' : 'none'
       }}>
@@ -703,22 +741,22 @@ function GameView() {
           justifyContent: 'center',
           paddingLeft: handToRender.length > 1 ? '50px' : '0',
           position: 'relative',
-          zIndex: thisIsCurrentPlayer ? 1000 : 1
+          zIndex: isCurrentPlayerHand ? 1000 : 1
         }}>
           {handToRender.map((card, idx) => (
             <Card 
               key={`${card.suit}_${card.rank}_${idx}`}
               card={card}
               index={idx}
-              isInHand={thisIsCurrentPlayer}
-              canDrag={thisIsCurrentPlayer && !card.show_back && isCurrentPlayer}
+              isInHand={isCurrentPlayerHand}
+              canDrag={isCurrentPlayerHand && !card.show_back && isCurrentPlayerTurn}
               onCardClick={
-                thisIsCurrentPlayer && !card.show_back && isCurrentPlayer
+                isCurrentPlayerHand && !card.show_back && isCurrentPlayerTurn
                   ? () => handleCardClick(idx)
                   : undefined
               }
               style={{
-                zIndex: thisIsCurrentPlayer ? 1000 + idx : 1 + idx
+                zIndex: isCurrentPlayerHand ? 1000 + idx : 1 + idx
               }}
               gameType={gameType}
             />
@@ -730,14 +768,14 @@ function GameView() {
           marginTop: '10px',
           fontSize: '0.9em',
           textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
-          zIndex: thisIsCurrentPlayer ? 1000 : 1,
+          zIndex: isCurrentPlayerHand ? 1000 : 1,
           padding: '5px 15px',
           borderRadius: '15px',
           backgroundColor: isTheirTurn ? 'rgba(255, 215, 0, 0.2)' : 'transparent',
           border: isTheirTurn ? '1px solid rgba(255, 215, 0, 0.5)' : 'none',
           transition: 'all 0.3s ease'
         }}>
-          {player.name} {thisIsCurrentPlayer ? '(You)' : `(${hand.length} cards)`}
+          {player.name} {isCurrentPlayerHand ? '(You)' : `(${hand.length} cards)`}
           {player.is_host && ' (Host)'}
         </div>
       </div>
@@ -786,7 +824,7 @@ function GameView() {
                   left: '50%',
                   top: '50%',
                   transform: `translate(-50%, -50%) translate(${Math.cos(angle * Math.PI / 180) * 60}px, ${Math.sin(angle * Math.PI / 180) * 60}px)`,
-                  cursor: isCurrentPlayer ? 'pointer' : 'default'
+                  cursor: isCurrentPlayerTurn ? 'pointer' : 'default'
                 }}>
                   {pile.length > 0 ? (
                     renderDroppablePile('foundation', pile.map((card, cardIndex) => (
@@ -794,7 +832,7 @@ function GameView() {
                         position: 'absolute',
                         transform: `translateY(${cardIndex * 2}px)`
                       }}>
-                        <Card card={card} index={cardIndex} canDrag={isCurrentPlayer} />
+                        <Card card={card} index={cardIndex} canDrag={isCurrentPlayerTurn} />
                       </div>
                     )))
                   ) : (
@@ -814,7 +852,7 @@ function GameView() {
                   left: '50%',
                   top: '50%',
                   transform: `translate(-50%, -50%) translate(${Math.cos(angle * Math.PI / 180) * 120}px, ${Math.sin(angle * Math.PI / 180) * 120}px)`,
-                  cursor: isCurrentPlayer ? 'pointer' : 'default'
+                  cursor: isCurrentPlayerTurn ? 'pointer' : 'default'
                 }}>
                   {pile.length > 0 ? (
                     renderDroppablePile('corner', pile.map((card, cardIndex) => (
@@ -822,7 +860,7 @@ function GameView() {
                         position: 'absolute',
                         transform: `translateY(${cardIndex * 2}px)`
                       }}>
-                        <Card card={card} index={cardIndex} canDrag={isCurrentPlayer} />
+                        <Card card={card} index={cardIndex} canDrag={isCurrentPlayerTurn} />
                       </div>
                     )))
                   ) : (
@@ -1008,12 +1046,12 @@ function GameView() {
               {/* Draw pile */}
               <div 
                 className="draw-pile"
-                onClick={() => isCurrentPlayer && handleGameAction('draw_card')}
+                onClick={() => isCurrentPlayerTurn && handleGameAction('draw_card')}
                 style={{
                   position: 'relative',
-                  cursor: isCurrentPlayer ? 'pointer' : 'default',
+                  cursor: isCurrentPlayerTurn ? 'pointer' : 'default',
                   transition: 'transform 0.2s',
-                  transform: isCurrentPlayer ? 'scale(1.05)' : 'scale(1)',
+                  transform: isCurrentPlayerTurn ? 'scale(1.05)' : 'scale(1)',
                 }}
               >
                 {gameState.deck?.cards_remaining > 0 && (
@@ -1045,9 +1083,9 @@ function GameView() {
                 )),
                 {
                   position: 'relative',
-                  cursor: isCurrentPlayer ? 'pointer' : 'default',
+                  cursor: isCurrentPlayerTurn ? 'pointer' : 'default',
                   transition: 'transform 0.2s',
-                  transform: isCurrentPlayer ? 'scale(1.05)' : 'scale(1)',
+                  transform: isCurrentPlayerTurn ? 'scale(1.05)' : 'scale(1)',
                   borderRadius: '8px',
                   padding: '4px'
                 }
@@ -1089,7 +1127,7 @@ function GameView() {
                       transform: 'translateX(-30px)',
                       marginLeft: cardIndex === 0 ? '0' : '-30px'
                     }}>
-                      <Card card={card} index={cardIndex} canDrag={isCurrentPlayer} />
+                      <Card card={card} index={cardIndex} canDrag={isCurrentPlayerTurn} />
                     </div>
                   )),
                   {
@@ -1099,7 +1137,7 @@ function GameView() {
                 )
               ))}
               {/* Empty meld drop zone */}
-              {isCurrentPlayer && renderDropZone('meld', null, {
+              {isCurrentPlayerTurn && renderDropZone('meld', null, {
                 width: '120px',
                 height: '150px',
                 border: '2px dashed rgba(255,255,255,0.3)',
@@ -1201,12 +1239,12 @@ function GameView() {
             {/* Draw pile */}
             <div 
               className="draw-pile"
-              onClick={() => isCurrentPlayer && handleGameAction('draw_card')}
+              onClick={() => isCurrentPlayerTurn && handleGameAction('draw_card')}
               style={{
                 position: 'relative',
-                cursor: isCurrentPlayer ? 'pointer' : 'default',
+                cursor: isCurrentPlayerTurn ? 'pointer' : 'default',
                 transition: 'transform 0.2s',
-                transform: isCurrentPlayer ? 'scale(1.05)' : 'scale(1)',
+                transform: isCurrentPlayerTurn ? 'scale(1.05)' : 'scale(1)',
               }}
             >
               {gameState.deck?.cards_remaining > 0 && (
@@ -1321,7 +1359,7 @@ function GameView() {
   const renderGameControls = () => {
     if (!gameState) return null;
 
-    const isCurrentPlayer = gameState.current_player === playerId;
+    const isCurrentPlayerTurn = gameState.current_player === playerId;
     const myHand = gameState.players?.[playerId]?.hand || [];
 
     switch (gameType) {
@@ -1334,7 +1372,7 @@ function GameView() {
             gap: '10px',
             marginBottom: '80px' // Reduced space to fit in viewport
           }}>
-            {isCurrentPlayer && (
+            {isCurrentPlayerTurn && (
               <button 
                 onClick={() => {
                   if (selectedCards.length === 1) {
@@ -1368,7 +1406,7 @@ function GameView() {
             gap: '10px',
             marginBottom: '100px' // Add space above the player's cards
           }}>
-            {isCurrentPlayer && (
+            {isCurrentPlayerTurn && (
               <button 
                 onClick={() => handleGameAction('play_card')}
                 className="button"
@@ -1411,12 +1449,12 @@ function GameView() {
             bottom: '250px',
             left: '50%',
             transform: 'translateX(-50%)',
-            opacity: isCurrentPlayer && selectedCards.length === 1 ? '1' : '0',
-            visibility: isCurrentPlayer && selectedCards.length === 1 ? 'visible' : 'hidden',
+            opacity: isCurrentPlayerTurn && selectedCards.length === 1 ? '1' : '0',
+            visibility: isCurrentPlayerTurn && selectedCards.length === 1 ? 'visible' : 'hidden',
             transition: 'opacity 0.3s ease, visibility 0.3s ease',
             zIndex: 10000
           }}>
-            {isCurrentPlayer && selectedCards.length === 1 && (
+            {isCurrentPlayerTurn && selectedCards.length === 1 && (
               <select 
                 onChange={(e) => {
                   if (e.target.value) {
@@ -1458,7 +1496,7 @@ function GameView() {
             gap: '10px',
             marginBottom: '80px' // Reduced space to fit in viewport
           }}>
-            {isCurrentPlayer ? (
+            {isCurrentPlayerTurn ? (
               <>
                 {/* Play cards face down */}
                 {selectedCards.length > 0 && (
@@ -1536,7 +1574,7 @@ function GameView() {
             gap: '10px',
             marginBottom: '80px' // Reduced space to fit in viewport
           }}>
-            {isCurrentPlayer && (
+            {isCurrentPlayerTurn && (
               <>
                 {/* Draw controls */}
                 {myHand.length < 3 && (
@@ -1640,9 +1678,9 @@ function GameView() {
 
   useEffect(() => {
     if (gameState?.current_player === playerId) {
-      setIsCurrentPlayer(true);
+      setIsCurrentPlayerTurn(true);
     } else {
-      setIsCurrentPlayer(false);
+      setIsCurrentPlayerTurn(false);
     }
   }, [gameState?.current_player, playerId]);
 
