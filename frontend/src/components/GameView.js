@@ -218,7 +218,8 @@ function GameView() {
   const [isCurrentPlayerTurn, setIsCurrentPlayerTurn] = useState(false);
   const [showSets, setShowSets] = useState(false);
   const [playerHandOrder, setPlayerHandOrder] = useState([]);
-
+  const [isConnected, setIsConnected] = useState(false);
+  const [completedSets, setCompletedSets] = useState({});
   // Initialize drop zones using the custom hook
   const { dropZoneData } = useGameDropZones(gameState, playerId);
 
@@ -423,11 +424,38 @@ function GameView() {
             }
           });
           
-          setGameState(newState);
+          // Update current player turn status
+          const isMyTurn = String(newState.current_player) === String(playerId);
+          setIsCurrentPlayerTurn(isMyTurn);
+          
+          // Update game state
+          setGameState(prevState => {
+            // If this is a game update, merge with previous state
+            if (data.type === 'game_update') {
+              return {
+                ...prevState,
+                ...newState,
+                last_action: newState.last_action || prevState?.last_action,
+                current_player: newState.current_player || prevState?.current_player,
+                players: {
+                  ...prevState?.players,
+                  ...newState.players
+                }
+              };
+            }
+            // If this is a full game state, replace everything
+            return newState;
+          });
           
           if (data.type === 'game_update' && data.result && !data.result.success) {
             setError(data.result.message || 'Action failed');
           }
+          
+          // Clear selected cards when turn changes
+          if (data.type === 'game_update' && String(newState.current_player) !== String(playerId)) {
+            setSelectedCards([]);
+          }
+          
         } else if (data.type === 'game_started') {
           console.log('Game started received:', data);
           // Handle initial game state from game start
@@ -450,6 +478,10 @@ function GameView() {
               };
             }
           });
+          
+          // Update current player turn status
+          const isMyTurn = String(newState.current_player) === String(playerId);
+          setIsCurrentPlayerTurn(isMyTurn);
           
           console.log('Processed game state:', newState);
           setGameState(newState);
@@ -1214,109 +1246,182 @@ function GameView() {
 
       case 'go_fish':
         return (
-          <div className="go-fish-center" style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '400px',
-            maxHeight: '60vh',
+          <div className="game-controls" style={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '20px',
-            justifyContent: 'center'
+            gap: '10px',
+            position: 'absolute',
+            bottom: '275px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            opacity: isCurrentPlayerTurn ? '1' : '0.5',
+            transition: 'opacity 0.3s ease',
+            zIndex: 10000,
+            backdropFilter: 'blur(5px)',
+            WebkitBackdropFilter: 'blur(5px)',
+            padding: '15px',
+            borderRadius: '15px',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+            border: '1px solid rgba(255,255,255,0.1)'
           }}>
-            {/* Draw pile */}
-            <div 
-              className="draw-pile"
-              onClick={() => isCurrentPlayerTurn && handleGameAction('draw_card')}
-              style={{
-                position: 'relative',
-                cursor: isCurrentPlayerTurn ? 'pointer' : 'default',
-                transition: 'transform 0.2s',
-                transform: isCurrentPlayerTurn ? 'scale(1.05)' : 'scale(1)',
-              }}
-            >
-              {gameState.deck?.cards_remaining > 0 && (
-                <Card 
-                  card={{
-                    show_back: true,
-                    image_back: backDark
-                  }}
-                  index={0}
-                  canDrag={false}
-                />
-              )}
-              <div style={{
-                position: 'absolute',
-                bottom: '-25px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                color: 'white',
-                fontSize: '0.8em'
-              }}>
-                Draw ({gameState.deck?.cards_remaining || 0})
-              </div>
+            {/* Turn indicator */}
+            <div style={{
+              color: 'white',
+              textAlign: 'center',
+              padding: '10px 20px',
+              backgroundColor: isCurrentPlayerTurn ? 'rgba(76,175,80,0.8)' : 'rgba(0,0,0,0.5)',
+              borderRadius: '5px',
+              marginBottom: '10px',
+              transition: 'all 0.3s ease',
+              fontWeight: 'bold',
+              textShadow: '0 1px 2px rgba(0,0,0,0.2)'
+            }}>
+              {isCurrentPlayerTurn ? "Your Turn!" : `${gameState.players[gameState.current_player]?.name}'s Turn`}
             </div>
 
-            {/* Game info */}
-            {gameState.last_action && (
+            {/* Player selection for asking cards */}
+            {isCurrentPlayerTurn && selectedCards.length === 1 && (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '10px',
+                backgroundColor: 'rgba(0,0,0,0.7)',
+                padding: '15px',
+                borderRadius: '10px',
+                boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+              }}>
+                <div style={{ color: 'white', marginBottom: '5px', fontWeight: 'bold' }}>
+                  Asking for {myHand[selectedCards[0]]?.rank}s
+                </div>
+                <select 
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      handleGameAction('ask_for_cards', {
+                        target_player_id: e.target.value,
+                        rank: myHand[selectedCards[0]]?.rank
+                      });
+                      setSelectedCards([]);
+                    }
+                  }}
+                  style={{
+                    padding: '10px',
+                    borderRadius: '5px',
+                    border: '1px solid #4CAF50',
+                    backgroundColor: 'white',
+                    minWidth: '200px',
+                    cursor: 'pointer',
+                    outline: 'none',
+                    fontSize: '14px'
+                  }}
+                >
+                  <option value="">Select a player to ask</option>
+                  {Object.entries(gameState.players || {})
+                    .filter(([id]) => id !== playerId)
+                    .map(([id, player]) => (
+                      <option key={id} value={id}>
+                        {player.name} ({player.hand_size} cards)
+                      </option>
+                    ))}
+                </select>
+              </div>
+            )}
+
+            {/* Instructions when it's player's turn but no card selected */}
+            {isCurrentPlayerTurn && selectedCards.length === 0 && (
               <div style={{
                 color: 'white',
                 textAlign: 'center',
                 padding: '10px',
-                backgroundColor: 'rgba(0,0,0,0.3)',
+                backgroundColor: 'rgba(0,0,0,0.5)',
                 borderRadius: '5px',
-                marginTop: '20px'
+                fontStyle: 'italic'
               }}>
-                {gameState.last_action.action === 'cards_received' ? (
-                  <>
-                    {gameState.players[gameState.last_action.player]?.name} got {gameState.last_action.count} {gameState.last_action.rank}{gameState.last_action.count !== 1 ? 's' : ''} from {gameState.players[gameState.last_action.target]?.name}
-                  </>
-                ) : gameState.last_action.action === 'go_fish' ? (
-                  <>
-                    {gameState.players[gameState.last_action.player]?.name} asked for {gameState.last_action.rank}s - Go Fish!
-                  </>
-                ) : gameState.last_action.action === 'successful_fish' ? (
-                  <>
-                    {gameState.players[gameState.last_action.player]?.name} fished what they wanted - a {gameState.last_action.rank}!
-                  </>
-                ) : null}
+                Select a card to ask for its rank
               </div>
             )}
 
             {/* View Sets Button */}
-            {Object.entries(gameState.completed_sets || {}).length > 0 && (
+            {Object.values(gameState.completed_sets || {}).some(sets => sets.length > 0) && (
               <button
                 onClick={() => setShowSets(true)}
-                className="view-sets-button"
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#2196F3',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '5px',
+                  cursor: 'pointer',
+                  marginTop: '10px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                  transition: 'transform 0.2s ease',
+                  '&:hover': {
+                    transform: 'scale(1.05)'
+                  }
+                }}
               >
-                View Completed Sets
+                View Sets ({Object.values(gameState.completed_sets).reduce((total, sets) => total + sets.length, 0)})
               </button>
             )}
 
             {/* Sets Overlay */}
             {showSets && (
-              <div className="overlay" onClick={() => setShowSets(false)}>
-                <div className="overlay-content" onClick={e => e.stopPropagation()}>
-                  <h3>Completed Sets</h3>
-                  <div className="sets-grid">
-                    {Object.entries(gameState.completed_sets).map(([pid, sets]) => (
-                      <div key={pid} className="player-sets">
-                        <div className="player-name">{gameState.players[pid]?.name}</div>
-                        <div className="sets-count">Sets: {sets.length}</div>
-                        <div className="sets-list">
+              <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.8)',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: 10000
+              }} onClick={() => setShowSets(false)}>
+                <div style={{
+                  backgroundColor: 'white',
+                  padding: '20px',
+                  borderRadius: '10px',
+                  maxWidth: '80%',
+                  maxHeight: '80%',
+                  overflow: 'auto'
+                }} onClick={e => e.stopPropagation()}>
+                  <h3 style={{ marginTop: 0 }}>Completed Sets</h3>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                    gap: '20px',
+                    padding: '10px'
+                  }}>
+                    {Object.entries(gameState.completed_sets || {}).map(([pid, sets]) => (
+                      <div key={pid} style={{
+                        backgroundColor: '#f5f5f5',
+                        padding: '15px',
+                        borderRadius: '8px'
+                      }}>
+                        <div style={{
+                          fontWeight: 'bold',
+                          marginBottom: '10px',
+                          color: pid === playerId ? '#4CAF50' : 'inherit'
+                        }}>
+                          {gameState.players[pid]?.name} {pid === playerId ? '(You)' : ''}
+                        </div>
+                        <div style={{ color: '#666' }}>Sets: {sets.length}</div>
+                        <div style={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          gap: '5px',
+                          marginTop: '10px'
+                        }}>
                           {sets.map((set, index) => (
-                            <div key={index} className="set-rank">
+                            <div key={index} style={{
+                              padding: '5px 10px',
+                              backgroundColor: 'white',
+                              borderRadius: '4px',
+                              border: '1px solid #ddd'
+                            }}>
                               {set.rank}
-                              <span className={`suit ${set.suit.toLowerCase()}`}>
-                                {set.suit === 'HEARTS' ? '♥' : 
-                                 set.suit === 'DIAMONDS' ? '♦' : 
-                                 set.suit === 'CLUBS' ? '♣' : 
-                                 set.suit === 'SPADES' ? '♠' : 
-                                 set.suit}
-                              </span>
                             </div>
                           ))}
                         </div>
@@ -1324,8 +1429,16 @@ function GameView() {
                     ))}
                   </div>
                   <button 
-                    className="close-button"
                     onClick={() => setShowSets(false)}
+                    style={{
+                      marginTop: '20px',
+                      padding: '10px 20px',
+                      backgroundColor: '#f44336',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '5px',
+                      cursor: 'pointer'
+                    }}
                   >
                     Close
                   </button>
@@ -1444,40 +1557,187 @@ function GameView() {
             bottom: '275px',
             left: '50%',
             transform: 'translateX(-50%)',
-            opacity: isCurrentPlayerTurn && selectedCards.length === 1 ? '1' : '0',
-            visibility: isCurrentPlayerTurn && selectedCards.length === 1 ? 'visible' : 'hidden',
-            transition: 'opacity 0.3s ease, visibility 0.3s ease',
+            opacity: isCurrentPlayerTurn ? '1' : '0.5',
+            transition: 'opacity 0.3s ease',
             zIndex: 10000
           }}>
+            {/* Turn indicator */}
+            <div style={{
+              color: 'white',
+              textAlign: 'center',
+              padding: '10px 20px',
+              backgroundColor: isCurrentPlayerTurn ? 'rgba(76,175,80,0.8)' : 'rgba(0,0,0,0.5)',
+              borderRadius: '5px',
+              marginBottom: '10px',
+              transition: 'all 0.3s ease'
+            }}>
+              {isCurrentPlayerTurn ? "Your Turn!" : `${gameState.players[gameState.current_player]?.name}'s Turn`}
+            </div>
+
+            {/* Player selection for asking cards */}
             {isCurrentPlayerTurn && selectedCards.length === 1 && (
-              <select 
-                onChange={(e) => {
-                  if (e.target.value) {
-                    handleGameAction('ask_for_cards', {
-                      target_player_id: e.target.value,
-                      rank: myHand[selectedCards[0]]?.rank
-                    });
-                    setSelectedCards([]);
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '10px',
+                backgroundColor: 'rgba(0,0,0,0.7)',
+                padding: '15px',
+                borderRadius: '10px',
+                boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+              }}>
+                <div style={{ color: 'white', marginBottom: '5px', fontWeight: 'bold' }}>
+                  Asking for {myHand[selectedCards[0]]?.rank}s
+                </div>
+                <select 
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      handleGameAction('ask_for_cards', {
+                        target_player_id: e.target.value,
+                        rank: myHand[selectedCards[0]]?.rank
+                      });
+                      setSelectedCards([]);
+                    }
+                  }}
+                  style={{
+                    padding: '10px',
+                    borderRadius: '5px',
+                    border: '1px solid #4CAF50',
+                    backgroundColor: 'white',
+                    minWidth: '200px',
+                    cursor: 'pointer',
+                    outline: 'none',
+                    fontSize: '14px'
+                  }}
+                >
+                  <option value="">Select a player to ask</option>
+                  {Object.entries(gameState.players || {})
+                    .filter(([id]) => id !== playerId)
+                    .map(([id, player]) => (
+                      <option key={id} value={id}>
+                        {player.name} ({player.hand_size} cards)
+                      </option>
+                    ))}
+                </select>
+              </div>
+            )}
+
+            {/* Instructions when it's player's turn but no card selected */}
+            {isCurrentPlayerTurn && selectedCards.length === 0 && (
+              <div style={{
+                color: 'white',
+                textAlign: 'center',
+                padding: '10px',
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                borderRadius: '5px',
+                fontStyle: 'italic'
+              }}>
+                Select a card to ask for its rank
+              </div>
+            )}
+
+            {/* View Sets Button */}
+            {Object.values(gameState.completed_sets || {}).some(sets => sets.length > 0) && (
+              <button
+                onClick={() => setShowSets(true)}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#2196F3',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '5px',
+                  cursor: 'pointer',
+                  marginTop: '10px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                  transition: 'transform 0.2s ease',
+                  '&:hover': {
+                    transform: 'scale(1.05)'
                   }
                 }}
-                className="player-select"
-                style={{
-                  padding: '10px',
-                  borderRadius: '5px',
-                  border: '1px solid #ccc',
-                  backgroundColor: 'white',
-                  minWidth: '200px'
-                }}
               >
-                <option value="">Select a player to ask</option>
-                {Object.entries(gameState.players || {})
-                  .filter(([id]) => id !== playerId)
-                  .map(([id, player]) => (
-                    <option key={id} value={id}>
-                      {player.name}
-                    </option>
-                  ))}
-              </select>
+                View Sets ({Object.values(gameState.completed_sets).reduce((total, sets) => total + sets.length, 0)})
+              </button>
+            )}
+
+            {/* Sets Overlay */}
+            {showSets && (
+              <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.8)',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: 10000
+              }} onClick={() => setShowSets(false)}>
+                <div style={{
+                  backgroundColor: 'white',
+                  padding: '20px',
+                  borderRadius: '10px',
+                  maxWidth: '80%',
+                  maxHeight: '80%',
+                  overflow: 'auto'
+                }} onClick={e => e.stopPropagation()}>
+                  <h3 style={{ marginTop: 0 }}>Completed Sets</h3>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                    gap: '20px',
+                    padding: '10px'
+                  }}>
+                    {Object.entries(gameState.completed_sets || {}).map(([pid, sets]) => (
+                      <div key={pid} style={{
+                        backgroundColor: '#f5f5f5',
+                        padding: '15px',
+                        borderRadius: '8px'
+                      }}>
+                        <div style={{
+                          fontWeight: 'bold',
+                          marginBottom: '10px',
+                          color: pid === playerId ? '#4CAF50' : 'inherit'
+                        }}>
+                          {gameState.players[pid]?.name} {pid === playerId ? '(You)' : ''}
+                        </div>
+                        <div style={{ color: '#666' }}>Sets: {sets.length}</div>
+                        <div style={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          gap: '5px',
+                          marginTop: '10px'
+                        }}>
+                          {sets.map((set, index) => (
+                            <div key={index} style={{
+                              padding: '5px 10px',
+                              backgroundColor: 'white',
+                              borderRadius: '4px',
+                              border: '1px solid #ddd'
+                            }}>
+                              {set.rank}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <button 
+                    onClick={() => setShowSets(false)}
+                    style={{
+                      marginTop: '20px',
+                      padding: '10px 20px',
+                      backgroundColor: '#f44336',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '5px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         );

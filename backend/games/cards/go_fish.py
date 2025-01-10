@@ -60,7 +60,6 @@ class GoFishGame(BaseGame):
                 print(f"Current player: {str(self.current_player.id)}")
                 print(f"Asking player: {str(asking_player.id)}")
                 print(f"Target player: {str(target_player.id)}")
-                #whos turn is it?
                 print(f"Whose turn is it? {self.current_player.id}")
                 raise ValueError("Not your turn")
 
@@ -74,11 +73,15 @@ class GoFishGame(BaseGame):
                 drawn_card = self.deck.draw()
                 if drawn_card:
                     asking_player.hand.append(drawn_card)
+                    # Check for sets after drawing
+                    new_sets = self._check_for_sets(asking_player)
+                    
                     self.last_action = {
                         'action': 'go_fish',
                         'player': asking_player_id,
                         'rank': rank,
-                        'game_state': self.state.value
+                        'game_state': self.state.value,
+                        'new_sets': [[card.to_dict() for card in set_cards] for set_cards in new_sets]
                     }
                     self.next_turn()
                     return self.get_game_state(asking_player_id)
@@ -113,28 +116,39 @@ class GoFishGame(BaseGame):
                     'new_sets': [[card.to_dict() for card in set_cards] for set_cards in new_sets],
                     'game_state': self.state.value
                 }
+                
+                # Player gets another turn if they got cards
+                return self.get_game_state(asking_player_id)
             else:
                 # Go fish
                 drawn_card = self.deck.draw()
                 if drawn_card:
                     asking_player.hand.append(drawn_card)
+                    # Check for sets after drawing
+                    new_sets = self._check_for_sets(asking_player)
+                    
                     # Check if drawn card matches requested rank
                     if drawn_card.rank == rank:
                         self.last_action = {
                             'action': 'successful_fish',
                             'player': asking_player_id,
                             'rank': rank,
+                            'new_sets': [[card.to_dict() for card in set_cards] for set_cards in new_sets],
                             'game_state': self.state.value
                         }
+                        # Player gets another turn if they drew what they asked for
+                        return self.get_game_state(asking_player_id)
                     else:
                         self.last_action = {
                             'action': 'go_fish',
                             'player': asking_player_id,
                             'rank': rank,
+                            'new_sets': [[card.to_dict() for card in set_cards] for set_cards in new_sets],
                             'game_state': self.state.value
                         }
                         # Move to next player since card didn't match
                         self.next_turn()
+                        return self.get_game_state(asking_player_id)
                 else:
                     # No cards left in deck
                     self.last_action = {
@@ -144,6 +158,7 @@ class GoFishGame(BaseGame):
                         'game_state': self.state.value
                     }
                     self.next_turn()
+                    return self.get_game_state(asking_player_id)
 
             # Check for game end
             if self._check_game_end():
@@ -168,6 +183,13 @@ class GoFishGame(BaseGame):
                 },
                 'scores': {
                     player_id: len(sets)
+                    for player_id, sets in self.sets.items()
+                },
+                'completed_sets': {
+                    player_id: [
+                        {'rank': set_cards[0].rank, 'suit': set_cards[0].suit}
+                        for set_cards in sets
+                    ]
                     for player_id, sets in self.sets.items()
                 },
                 'cards_in_deck': len(self.deck.cards),
