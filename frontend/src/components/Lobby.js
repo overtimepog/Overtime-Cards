@@ -87,7 +87,7 @@ function Lobby() {
     }
 
     let retryCount = 0;
-    const maxRetries = 3;
+    const maxRetries = 0;
     let websocket = null;
 
     const connectWebSocket = () => {
