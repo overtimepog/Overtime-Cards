@@ -793,6 +793,63 @@ function GameView() {
     return <div style={handStyle}>{content}</div>;
   };
 
+  // Add global CSS animations
+  useEffect(() => {
+    const styleSheet = document.createElement('style');
+    styleSheet.id = 'game-animations';
+    styleSheet.textContent = `
+      @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+      }
+      @keyframes bounceIn {
+        0% { transform: scale(0.3); opacity: 0; }
+        50% { transform: scale(1.05); opacity: 0.8; }
+        70% { transform: scale(0.9); opacity: 0.9; }
+        100% { transform: scale(1); opacity: 1; }
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes glow {
+        0% { box-shadow: 0 0 5px rgba(255,215,0,0.5); }
+        50% { box-shadow: 0 0 20px rgba(255,215,0,0.8); }
+        100% { box-shadow: 0 0 5px rgba(255,215,0,0.5); }
+      }
+      .card-transfer {
+        transition: all 0.5s ease;
+      }
+      .button-hover {
+        transition: transform 0.2s ease;
+      }
+      .button-hover:hover {
+        transform: scale(1.05);
+      }
+      .fade-in {
+        animation: fadeIn 0.3s ease;
+      }
+      .bounce-in {
+        animation: bounceIn 0.5s ease;
+      }
+      .pulse {
+        animation: pulse 1.5s infinite;
+      }
+      .glow {
+        animation: glow 2s ease-in-out infinite;
+      }
+    `;
+    document.head.appendChild(styleSheet);
+
+    return () => {
+      const existingStyle = document.getElementById('game-animations');
+      if (existingStyle) {
+        existingStyle.remove();
+      }
+    };
+  }, []);
+
   const renderGame = () => {
     if (!gameState) return null;
 
@@ -930,7 +987,7 @@ function GameView() {
               {isCurrentPlayerTurn && (
                 <button 
                   onClick={() => handleGameAction('play_card')}
-                  className="button"
+                  className="button-hover"
                   style={{
                     backgroundColor: '#4CAF50',
                     color: 'white',
@@ -944,7 +1001,7 @@ function GameView() {
               )}
               <button 
                 onClick={() => handleGameAction('snap')}
-                className="button snap-button"
+                className="button-hover pulse"
                 style={{
                   backgroundColor: '#f44336',
                   color: 'white',
@@ -1044,8 +1101,7 @@ function GameView() {
                       setSelectedCards([]);
                     }
                   }}
-                  className="button"
-                  disabled={selectedCards.length !== 1}
+                  className="button-hover"
                   style={{
                     backgroundColor: selectedCards.length === 1 ? '#4CAF50' : '#ccc',
                     color: 'white',
@@ -1054,6 +1110,7 @@ function GameView() {
                     borderRadius: '5px',
                     cursor: selectedCards.length === 1 ? 'pointer' : 'not-allowed'
                   }}
+                  disabled={selectedCards.length !== 1}
                 >
                   Pass Card
                 </button>
@@ -1064,205 +1121,221 @@ function GameView() {
 
       case 'go_fish':
         return (
-          <div className="game-controls" style={{
+          <div className="go-fish-game" style={{
+            position: 'absolute',
+            top: '0',
+            left: '0',
+            right: '0',
+            bottom: '0',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '10px',
-            position: 'absolute',
-            bottom: '275px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            opacity: isCurrentPlayerTurn ? '1' : '0.5',
-            transition: 'opacity 0.3s ease',
-            zIndex: 10000,
-            backdropFilter: 'blur(5px)',
-            WebkitBackdropFilter: 'blur(5px)',
-            padding: '15px',
-            borderRadius: '15px',
-            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-            border: '1px solid rgba(255,255,255,0.1)'
+            justifyContent: 'center'
           }}>
-            {/* Turn indicator */}
-            <div style={{
-              color: 'white',
-              textAlign: 'center',
-              padding: '10px 20px',
-              backgroundColor: isCurrentPlayerTurn ? 'rgba(76,175,80,0.8)' : 'rgba(0,0,0,0.5)',
-              borderRadius: '5px',
-              marginBottom: '10px',
-              transition: 'all 0.3s ease'
+            {/* Draw pile */}
+            <div className="center-area" style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              display: 'flex',
+              gap: '40px',
+              justifyContent: 'center',
+              alignItems: 'center'
             }}>
-              {isCurrentPlayerTurn ? "Your Turn!" : `${gameState.players[gameState.current_player]?.name}'s Turn`}
+              <div style={{
+                position: 'relative',
+                cursor: isCurrentPlayerTurn ? 'pointer' : 'default'
+              }}>
+                {gameState.deck_size > 0 && renderCard({ show_back: true }, 0, false)}
+                <div style={{
+                  position: 'absolute',
+                  bottom: '-25px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  color: 'white',
+                  fontSize: '0.8em',
+                  whiteSpace: 'nowrap'
+                }}>
+                  Draw Pile ({gameState.deck_size})
+                </div>
+              </div>
             </div>
 
-            {/* Last action display */}
-            {gameState.last_action && (
+            <div className="game-controls" style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '10px',
+              position: 'absolute',
+              bottom: '275px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              opacity: isCurrentPlayerTurn ? '1' : '0.5',
+              transition: 'opacity 0.3s ease',
+              zIndex: 10000,
+              backdropFilter: 'blur(5px)',
+              WebkitBackdropFilter: 'blur(5px)',
+              padding: '15px',
+              borderRadius: '15px',
+              boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+              border: '1px solid rgba(255,255,255,0.1)'
+            }}>
+              {/* Turn indicator */}
               <div style={{
                 color: 'white',
                 textAlign: 'center',
                 padding: '10px 20px',
-                backgroundColor: 'rgba(0,0,0,0.5)',
+                backgroundColor: isCurrentPlayerTurn ? 'rgba(76,175,80,0.8)' : 'rgba(0,0,0,0.5)',
                 borderRadius: '5px',
                 marginBottom: '10px',
-                animation: 'fadeIn 0.3s ease'
+                transition: 'all 0.3s ease'
               }}>
-                {gameState.last_action.action === 'go_fish' ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-                    <span>
-                      {gameState.players[gameState.last_action.player]?.name} asked for {gameState.last_action.rank}s - Go Fish!
-                    </span>
-                    {gameState.last_action.player === playerId && (
-                      <button
-                        onClick={() => handleGameAction('draw_card')}
-                        style={{
-                          padding: '8px 16px',
-                          backgroundColor: '#4CAF50',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '5px',
-                          cursor: 'pointer',
-                          animation: 'pulse 1.5s infinite'
-                        }}
-                      >
-                        Draw a Card
-                      </button>
-                    )}
-                  </div>
-                ) : gameState.last_action.action === 'got_cards' ? (
-                  <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '5px'
-                  }}>
-                    <span style={{
-                      animation: 'bounceIn 0.5s ease'
-                    }}>
-                      {gameState.players[gameState.last_action.player]?.name} got {gameState.last_action.count} {gameState.last_action.rank}{gameState.last_action.count > 1 ? 's' : ''}!
-                    </span>
-                    {gameState.last_action.player === playerId && (
-                      <div style={{
-                        color: '#FFD700',
-                        fontSize: '0.9em',
-                        animation: 'fadeIn 0.5s ease'
-                      }}>
-                        Cards added to your hand!
-                      </div>
-                    )}
-                  </div>
-                ) : null}
+                {isCurrentPlayerTurn ? "Your Turn!" : `${gameState.players[gameState.current_player]?.name}'s Turn`}
               </div>
-            )}
 
-            {/* Player selection for asking cards */}
-            {isCurrentPlayerTurn && selectedCards.length === 1 && !gameState.last_action?.action === 'go_fish' && (
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '10px',
-                backgroundColor: 'rgba(0,0,0,0.7)',
-                padding: '15px',
-                borderRadius: '10px',
-                boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-              }}>
-                <div style={{ color: 'white', marginBottom: '5px', fontWeight: 'bold' }}>
-                  Ask for {gameState?.players?.[playerId]?.hand?.[selectedCards[0]]?.rank}s
+              {/* Last action display */}
+              {gameState.last_action && (
+                <div style={{
+                  color: 'white',
+                  textAlign: 'center',
+                  padding: '10px 20px',
+                  backgroundColor: 'rgba(0,0,0,0.5)',
+                  borderRadius: '5px',
+                  marginBottom: '10px',
+                  animation: 'fadeIn 0.3s ease'
+                }}>
+                  {gameState.last_action.action === 'go_fish' ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                      <span className="fade-in">
+                        {gameState.players[gameState.last_action.player]?.name} asked for {gameState.last_action.rank}s - Go Fish!
+                      </span>
+                      {gameState.last_action.player === playerId && (
+                        <button
+                          onClick={() => handleGameAction('draw_card')}
+                          className="button-hover pulse"
+                          style={{
+                            padding: '8px 16px',
+                            backgroundColor: '#4CAF50',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '5px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Draw a Card
+                        </button>
+                      )}
+                    </div>
+                  ) : gameState.last_action.action === 'got_cards' ? (
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '5px'
+                    }}>
+                      <span className="bounce-in">
+                        {gameState.players[gameState.last_action.player]?.name} got {gameState.last_action.count} {gameState.last_action.rank}{gameState.last_action.count > 1 ? 's' : ''}!
+                      </span>
+                      {gameState.last_action.player === playerId && (
+                        <div className="fade-in" style={{
+                          color: '#FFD700',
+                          fontSize: '0.9em'
+                        }}>
+                          Cards added to your hand!
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
                 </div>
-                <select 
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      handleGameAction('ask_for_cards', {
-                        target_player_id: parseInt(e.target.value),
-                        rank: gameState?.players?.[playerId]?.hand?.[selectedCards[0]]?.rank
-                      });
-                      setSelectedCards([]);
+              )}
+
+              {/* Player selection for asking cards */}
+              {isCurrentPlayerTurn && selectedCards.length === 1 && !gameState.last_action?.action === 'go_fish' && (
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '10px',
+                  backgroundColor: 'rgba(0,0,0,0.7)',
+                  padding: '15px',
+                  borderRadius: '10px',
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                }}>
+                  <div style={{ color: 'white', marginBottom: '5px', fontWeight: 'bold' }}>
+                    Ask for {gameState?.players?.[playerId]?.hand?.[selectedCards[0]]?.rank}s
+                  </div>
+                  <select 
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        handleGameAction('ask_for_cards', {
+                          target_player_id: parseInt(e.target.value),
+                          rank: gameState?.players?.[playerId]?.hand?.[selectedCards[0]]?.rank
+                        });
+                        setSelectedCards([]);
+                      }
+                    }}
+                    style={{
+                      padding: '10px',
+                      borderRadius: '5px',
+                      border: '1px solid #4CAF50',
+                      backgroundColor: 'white',
+                      minWidth: '200px',
+                      cursor: 'pointer',
+                      outline: 'none',
+                      fontSize: '14px'
+                    }}
+                  >
+                    <option value="">Select a player to ask</option>
+                    {Object.entries(gameState.players || {})
+                      .filter(([id]) => id !== playerId)
+                      .map(([id, player]) => (
+                        <option key={id} value={id}>
+                          {player.name} ({player.hand_size} cards)
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Instructions when it's player's turn but no card selected */}
+              {isCurrentPlayerTurn && selectedCards.length === 0 && !gameState.last_action?.action === 'go_fish' && (
+                <div style={{
+                  color: 'white',
+                  textAlign: 'center',
+                  padding: '10px',
+                  backgroundColor: 'rgba(0,0,0,0.5)',
+                  borderRadius: '5px',
+                  fontStyle: 'italic'
+                }}>
+                  Select a card to ask for its rank
+                </div>
+              )}
+
+              {/* View Sets Button */}
+              {Object.values(gameState.completed_sets || {}).some(sets => sets.length > 0) && (
+                <button
+                  onClick={() => setShowSets(true)}
+                  className="button-hover"
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#2196F3',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                    marginTop: '10px',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                    transition: 'transform 0.2s ease',
+                    '&:hover': {
+                      transform: 'scale(1.05)'
                     }
                   }}
-                  style={{
-                    padding: '10px',
-                    borderRadius: '5px',
-                    border: '1px solid #4CAF50',
-                    backgroundColor: 'white',
-                    minWidth: '200px',
-                    cursor: 'pointer',
-                    outline: 'none',
-                    fontSize: '14px'
-                  }}
                 >
-                  <option value="">Select a player to ask</option>
-                  {Object.entries(gameState.players || {})
-                    .filter(([id]) => id !== playerId)
-                    .map(([id, player]) => (
-                      <option key={id} value={id}>
-                        {player.name} ({player.hand_size} cards)
-                      </option>
-                    ))}
-                </select>
-              </div>
-            )}
-
-            {/* Instructions when it's player's turn but no card selected */}
-            {isCurrentPlayerTurn && selectedCards.length === 0 && !gameState.last_action?.action === 'go_fish' && (
-              <div style={{
-                color: 'white',
-                textAlign: 'center',
-                padding: '10px',
-                backgroundColor: 'rgba(0,0,0,0.5)',
-                borderRadius: '5px',
-                fontStyle: 'italic'
-              }}>
-                Select a card to ask for its rank
-              </div>
-            )}
-
-            {/* Add CSS animations */}
-            <style>
-              {`
-                @keyframes pulse {
-                  0% { transform: scale(1); }
-                  50% { transform: scale(1.05); }
-                  100% { transform: scale(1); }
-                }
-                @keyframes bounceIn {
-                  0% { transform: scale(0.3); opacity: 0; }
-                  50% { transform: scale(1.05); opacity: 0.8; }
-                  70% { transform: scale(0.9); opacity: 0.9; }
-                  100% { transform: scale(1); opacity: 1; }
-                }
-                @keyframes fadeIn {
-                  from { opacity: 0; }
-                  to { opacity: 1; }
-                }
-                .card-transfer {
-                  transition: all 0.5s ease;
-                }
-              `}
-            </style>
-
-            {/* View Sets Button */}
-            {Object.values(gameState.completed_sets || {}).some(sets => sets.length > 0) && (
-              <button
-                onClick={() => setShowSets(true)}
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: '#2196F3',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '5px',
-                  cursor: 'pointer',
-                  marginTop: '10px',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                  transition: 'transform 0.2s ease',
-                  '&:hover': {
-                    transform: 'scale(1.05)'
-                  }
-                }}
-              >
-                View Sets ({Object.values(gameState.completed_sets).reduce((total, sets) => total + sets.length, 0)})
-              </button>
-            )}
+                  View Sets ({Object.values(gameState.completed_sets).reduce((total, sets) => total + sets.length, 0)})
+                </button>
+              )}
+            </div>
 
             {/* Sets Overlay */}
             {showSets && (
@@ -1329,6 +1402,7 @@ function GameView() {
                   </div>
                   <button 
                     onClick={() => setShowSets(false)}
+                    className="button-hover"
                     style={{
                       marginTop: '20px',
                       padding: '10px 20px',
@@ -1477,6 +1551,7 @@ function GameView() {
                         });
                         setSelectedCards([]);
                       }}
+                      className="button-hover"
                       style={{
                         padding: '10px 20px',
                         backgroundColor: '#4CAF50',
@@ -1498,6 +1573,7 @@ function GameView() {
                           setSelectedCards([]);
                         }
                       }}
+                      className="button-hover"
                       style={{
                         padding: '10px 20px',
                         backgroundColor: '#f44336',
@@ -1600,6 +1676,7 @@ function GameView() {
                       });
                       setSelectedCards([]);
                     }}
+                    className="button-hover"
                     style={{
                       padding: '10px 20px',
                       backgroundColor: '#f44336',
@@ -1620,6 +1697,7 @@ function GameView() {
                       });
                       setSelectedCards([]);
                     }}
+                    className="button-hover pulse"
                     style={{
                       padding: '10px 20px',
                       backgroundColor: '#4CAF50',
@@ -1734,6 +1812,7 @@ function GameView() {
                     />
                     <button
                       onClick={() => handleGameAction('confirm_bid')}
+                      className="button-hover"
                       style={{
                         padding: '10px 20px',
                         backgroundColor: '#4CAF50',
@@ -1755,6 +1834,7 @@ function GameView() {
                         });
                         setSelectedCards([]);
                       }}
+                      className="button-hover"
                       style={{
                         padding: '10px 20px',
                         backgroundColor: '#4CAF50',
@@ -1842,6 +1922,7 @@ function GameView() {
                 {gameState.last_claim && (
                   <button
                     onClick={() => handleGameAction('call_bluff')}
+                    className="button-hover pulse"
                     style={{
                       padding: '10px 20px',
                       backgroundColor: '#f44336',
