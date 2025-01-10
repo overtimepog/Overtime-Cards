@@ -1293,14 +1293,14 @@ function GameView() {
                 boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
               }}>
                 <div style={{ color: 'white', marginBottom: '5px', fontWeight: 'bold' }}>
-                  Asking for {myHand[selectedCards[0]]?.rank}s
+                  Asking for {gameState?.players?.[playerId]?.hand?.[selectedCards[0]]?.rank}s
                 </div>
                 <select 
                   onChange={(e) => {
                     if (e.target.value) {
                       handleGameAction('ask_for_cards', {
                         target_player_id: e.target.value,
-                        rank: myHand[selectedCards[0]]?.rank
+                        rank: gameState?.players?.[playerId]?.hand?.[selectedCards[0]]?.rank
                       });
                       setSelectedCards([]);
                     }
@@ -1587,14 +1587,14 @@ function GameView() {
                 boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
               }}>
                 <div style={{ color: 'white', marginBottom: '5px', fontWeight: 'bold' }}>
-                  Asking for {myHand[selectedCards[0]]?.rank}s
+                  Asking for {gameState?.players?.[playerId]?.hand?.[selectedCards[0]]?.rank}s
                 </div>
                 <select 
                   onChange={(e) => {
                     if (e.target.value) {
                       handleGameAction('ask_for_cards', {
                         target_player_id: e.target.value,
-                        rank: myHand[selectedCards[0]]?.rank
+                        rank: gameState?.players?.[playerId]?.hand?.[selectedCards[0]]?.rank
                       });
                       setSelectedCards([]);
                     }
