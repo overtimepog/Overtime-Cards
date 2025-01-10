@@ -805,7 +805,7 @@ function GameView() {
     return <div style={handStyle}>{content}</div>;
   };
 
-  const renderGameCenter = () => {
+  const renderGame = () => {
     if (!gameState) return null;
 
     const renderDroppablePile = (type, children, style = {}) => {
@@ -895,7 +895,7 @@ function GameView() {
 
       case 'snap':
         return (
-          <div className="snap-center" style={{
+          <div className="snap-game" style={{
             position: 'absolute',
             top: '50%',
             left: '50%',
@@ -908,6 +908,7 @@ function GameView() {
             gap: '20px',
             justifyContent: 'center'
           }}>
+            {/* Center pile */}
             {renderDropZone('center', 
               gameState.center_pile?.slice(-1).map((card, index) => (
                 <div key={index} style={{
@@ -929,62 +930,51 @@ function GameView() {
                 alignItems: 'center'
               }
             )}
-          </div>
-        );
 
-      case 'bluff':
-        return (
-          <div className="bluff-center" style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '300px',
-            maxHeight: '60vh',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '20px',
-            justifyContent: 'center'
-          }}>
-            {/* Center pile */}
-            <div className="center-pile" style={{
-              position: 'relative',
-              minHeight: '120px',
-              width: '100%',
+            {/* Game controls */}
+            <div className="game-controls" style={{
               display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center'
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '10px',
+              marginBottom: '100px'
             }}>
-              {gameState.center_pile?.map((card, index) => (
-                <div key={index} style={{
-                  position: 'absolute',
-                  transform: `rotate(${Math.random() * 10 - 5}deg) translate(${index * 0.5}px, ${index * 0.5}px)`,
-                  zIndex: index
-                }}>
-                  {renderCard(card)}
-                </div>
-              ))}
+              {isCurrentPlayerTurn && (
+                <button 
+                  onClick={() => handleGameAction('play_card')}
+                  className="button"
+                  style={{
+                    backgroundColor: '#4CAF50',
+                    color: 'white',
+                    border: 'none',
+                    padding: '10px 20px',
+                    borderRadius: '5px'
+                  }}
+                >
+                  Play Card
+                </button>
+              )}
+              <button 
+                onClick={() => handleGameAction('snap')}
+                className="button snap-button"
+                style={{
+                  backgroundColor: '#f44336',
+                  color: 'white',
+                  border: 'none',
+                  padding: '10px 20px',
+                  borderRadius: '5px',
+                  fontWeight: 'bold'
+                }}
+              >
+                SNAP!
+              </button>
             </div>
-
-            {/* Last play information */}
-            {gameState.last_play && (
-              <div style={{
-                color: 'white',
-                textAlign: 'center',
-                padding: '10px',
-                backgroundColor: 'rgba(0,0,0,0.3)',
-                borderRadius: '5px'
-              }}>
-                {gameState.players[gameState.last_play.player]?.name} played {gameState.last_play.count} {gameState.last_play.rank}{gameState.last_play.count !== 1 ? 's' : ''}
-              </div>
-            )}
           </div>
         );
 
       case 'spoons':
         return (
-          <div className="spoons-container" style={{ 
+          <div className="spoons-game" style={{ 
             position: 'absolute',
             top: '50%',
             left: '50%',
@@ -992,253 +982,95 @@ function GameView() {
             width: '200px',
             height: '200px',
             display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '10px',
-            marginBottom: '100px' // Reduced space above the player's cards
-          }}>
-            {[...Array(gameState.total_spoons || (Object.keys(gameState.players).length - 1))].map((_, index) => {
-              const isAvailable = index < (gameState.spoons || 0);
-              const lastAction = gameState.last_action;
-              const wasJustGrabbed = lastAction?.action === 'grab_spoon' && index === lastAction.spoon_index;
-              const grabberPosition = wasJustGrabbed && lastAction.player && gameState.players[lastAction.player] ? 
-                calculatePlayerPosition(
-                  Object.keys(gameState.players).indexOf(lastAction.player),
-                  Object.keys(gameState.players).length
-                ) : null;
-              
-              return (
-                <div
-                  key={index}
-                  onClick={() => isAvailable && handleGameAction('grab_spoon')}
-                  style={{
-                    cursor: isAvailable ? 'pointer' : 'default',
-                    position: 'relative',
-                    transition: 'all 0.5s ease',
-                    transform: wasJustGrabbed ? 
-                      `translate(
-                        ${grabberPosition ? `calc(${grabberPosition.left} - 50%)` : '0'}, 
-                        ${grabberPosition ? `calc(${grabberPosition.top} - 50%)` : '0'}
-                      ) scale(0.8)` : 'none',
-                    opacity: wasJustGrabbed ? 0 : 1
-                  }}
-                >
-                  <img 
-                    src="/public/spoon-at-45-degree-angle.png"
-                    alt="Spoon"
-                    style={{
-                      width: '40px',
-                      height: 'auto',
-                      transform: 'rotate(45deg)',
-                      filter: isAvailable ? 
-                        'drop-shadow(0 0 10px rgba(255,255,0,0.5)) brightness(1.2)' : 
-                        'drop-shadow(2px 2px 2px rgba(0,0,0,0.2)) brightness(0.7)',
-                      transition: 'all 0.3s ease'
-                    }}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        );
-
-      case 'scat':
-        return (
-          <div className="scat-center" style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '400px',
-            maxHeight: '60vh',
-            display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             gap: '20px',
             justifyContent: 'center'
           }}>
-            {/* Draw and Discard piles */}
-            <div className="card-piles" style={{
+            {/* Spoons container */}
+            <div className="spoons-container" style={{ 
               display: 'flex',
-              gap: '40px',
-              alignItems: 'center'
-            }}>
-              {/* Draw pile */}
-              <div 
-                className="draw-pile"
-                onClick={() => isCurrentPlayerTurn && handleGameAction('draw_card')}
-                style={{
-                  position: 'relative',
-                  cursor: isCurrentPlayerTurn ? 'pointer' : 'default',
-                  transition: 'transform 0.2s',
-                  transform: isCurrentPlayerTurn ? 'scale(1.05)' : 'scale(1)',
-                }}
-              >
-                {gameState.deck?.cards_remaining > 0 && (
-                  <Card 
-                    card={{
-                      show_back: true,
-                      image_back: '/public/cards/back_dark.png'
-                    }}
-                    index={0}
-                    canDrag={false}
-                  />
-                )}
-                <div style={{
-                  position: 'absolute',
-                  bottom: '-25px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  color: 'white',
-                  fontSize: '0.8em'
-                }}>
-                  Draw ({gameState.deck?.cards_remaining})
-                </div>
-              </div>
-
-              {/* Discard pile */}
-              {renderDropZone('discard',
-                gameState.discard_pile?.slice(-1).map((card, index) => (
-                  <Card key={index} card={card} index={index} canDrag={false} />
-                )),
-                {
-                  position: 'relative',
-                  cursor: isCurrentPlayerTurn ? 'pointer' : 'default',
-                  transition: 'transform 0.2s',
-                  transform: isCurrentPlayerTurn ? 'scale(1.05)' : 'scale(1)',
-                  borderRadius: '8px',
-                  padding: '4px'
-                }
-              )}
-            </div>
-          </div>
-        );
-
-      case 'rummy':
-        return (
-          <div className="rummy-center" style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '600px',
-            maxHeight: '40vh',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '20px',
-            justifyContent: 'center'
-          }}>
-            {/* Melds area */}
-            <div className="melds-area" style={{
-              width: '100%',
-              minHeight: '150px',
-              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
               flexWrap: 'wrap',
               gap: '10px',
-              padding: '10px',
-              backgroundColor: 'rgba(0,0,0,0.2)',
-              borderRadius: '10px'
+              marginBottom: '100px'
             }}>
-              {gameState.melds?.map((meld, meldIndex) => (
-                renderDropZone(`meld-${meldIndex}`,
-                  meld.map((card, cardIndex) => (
-                    <div key={cardIndex} style={{
-                      transform: 'translateX(-30px)',
-                      marginLeft: cardIndex === 0 ? '0' : '-30px'
-                    }}>
-                      <Card card={card} index={cardIndex} canDrag={isCurrentPlayerTurn} />
-                    </div>
-                  )),
-                  {
-                    display: 'flex',
-                    gap: '5px'
-                  }
-                )
-              ))}
-              {/* Empty meld drop zone */}
-              {isCurrentPlayerTurn && renderDropZone('meld', null, {
-                width: '120px',
-                height: '150px',
-                border: '2px dashed rgba(255,255,255,0.3)',
-                borderRadius: '10px'
-              })}
-            </div>
-          </div>
-        );
-
-      case 'spades':
-        return (
-          <div className="spades-center" style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '600px',
-            maxHeight: '40vh',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '20px',
-            justifyContent: 'center'
-          }}>
-            {/* Game info */}
-            <div className="game-info" style={{
-              color: 'white',
-              textAlign: 'center',
-              fontSize: '1.2em'
-            }}>
-              <div>Trump: ♠</div>
-              {gameState.current_trick_winner && (
-                <div style={{ color: '#FFD700' }}>
-                  {gameState.players[gameState.current_trick_winner]?.name} won the trick!
-                </div>
-              )}
-            </div>
-
-            {/* Current trick */}
-            <div className="current-trick" style={{
-              position: 'relative',
-              width: '200px',
-              height: '200px'
-            }}>
-              {gameState.current_trick?.map((play, index) => {
-                const angle = index * (360 / 4); // 4 positions for 4 players
-                const radius = 80; // Distance from center
+              {[...Array(gameState.total_spoons || (Object.keys(gameState.players).length - 1))].map((_, index) => {
+                const isAvailable = index < (gameState.spoons || 0);
+                const lastAction = gameState.last_action;
+                const wasJustGrabbed = lastAction?.action === 'grab_spoon' && index === lastAction.spoon_index;
+                const grabberPosition = wasJustGrabbed && lastAction.player && gameState.players[lastAction.player] ? 
+                  calculatePlayerPosition(
+                    Object.keys(gameState.players).indexOf(lastAction.player),
+                    Object.keys(gameState.players).length
+                  ) : null;
+                
                 return (
-                  <div key={index} style={{
-                    position: 'absolute',
-                    left: '50%',
-                    top: '50%',
-                    transform: `translate(-50%, -50%) rotate(${angle}deg) translate(${radius}px) rotate(-${angle}deg)`
-                  }}>
-                    {renderCard(play.card)}
-                    <div style={{
-                      position: 'absolute',
-                      bottom: '-20px',
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      color: 'white',
-                      fontSize: '0.8em',
-                      whiteSpace: 'nowrap'
-                    }}>
-                      {gameState.players[play.player]?.name}
-                    </div>
+                  <div
+                    key={index}
+                    onClick={() => isAvailable && handleGameAction('grab_spoon')}
+                    style={{
+                      cursor: isAvailable ? 'pointer' : 'default',
+                      position: 'relative',
+                      transition: 'all 0.5s ease',
+                      transform: wasJustGrabbed ? 
+                        `translate(
+                          ${grabberPosition ? `calc(${grabberPosition.left} - 50%)` : '0'}, 
+                          ${grabberPosition ? `calc(${grabberPosition.top} - 50%)` : '0'}
+                        ) scale(0.8)` : 'none',
+                      opacity: wasJustGrabbed ? 0 : 1
+                    }}
+                  >
+                    <img 
+                      src="/public/spoon-at-45-degree-angle.png"
+                      alt="Spoon"
+                      style={{
+                        width: '40px',
+                        height: 'auto',
+                        transform: 'rotate(45deg)',
+                        filter: isAvailable ? 
+                          'drop-shadow(0 0 10px rgba(255,255,0,0.5)) brightness(1.2)' : 
+                          'drop-shadow(2px 2px 2px rgba(0,0,0,0.2)) brightness(0.7)',
+                        transition: 'all 0.3s ease'
+                      }}
+                    />
                   </div>
                 );
               })}
             </div>
 
-            {/* Score display */}
-            <div className="scores" style={{
-              display: 'flex',
-              gap: '20px',
-              color: 'white'
-            }}>
-              <div>NS: {gameState.scores?.ns || 0}</div>
-              <div>EW: {gameState.scores?.ew || 0}</div>
-            </div>
+            {/* Game controls */}
+            {isCurrentPlayerTurn && (
+              <div className="game-controls" style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '10px',
+                marginBottom: '80px'
+              }}>
+                <button 
+                  onClick={() => {
+                    if (selectedCards.length === 1) {
+                      handleGameAction('play_card', { card_index: selectedCards[0] });
+                      setSelectedCards([]);
+                    }
+                  }}
+                  className="button"
+                  disabled={selectedCards.length !== 1}
+                  style={{
+                    backgroundColor: selectedCards.length === 1 ? '#4CAF50' : '#ccc',
+                    color: 'white',
+                    border: 'none',
+                    padding: '10px 20px',
+                    borderRadius: '5px',
+                    cursor: selectedCards.length === 1 ? 'pointer' : 'not-allowed'
+                  }}
+                >
+                  Pass Card
+                </button>
+              </div>
+            )}
           </div>
         );
 
@@ -1262,302 +1094,6 @@ function GameView() {
             borderRadius: '15px',
             boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
             border: '1px solid rgba(255,255,255,0.1)'
-          }}>
-            {/* Turn indicator */}
-            <div style={{
-              color: 'white',
-              textAlign: 'center',
-              padding: '10px 20px',
-              backgroundColor: isCurrentPlayerTurn ? 'rgba(76,175,80,0.8)' : 'rgba(0,0,0,0.5)',
-              borderRadius: '5px',
-              marginBottom: '10px',
-              transition: 'all 0.3s ease',
-              fontWeight: 'bold',
-              textShadow: '0 1px 2px rgba(0,0,0,0.2)'
-            }}>
-              {isCurrentPlayerTurn ? "Your Turn!" : `${gameState.players[gameState.current_player]?.name}'s Turn`}
-            </div>
-
-            {/* Player selection for asking cards */}
-            {isCurrentPlayerTurn && selectedCards.length === 1 && (
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '10px',
-                backgroundColor: 'rgba(0,0,0,0.7)',
-                padding: '15px',
-                borderRadius: '10px',
-                boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-              }}>
-                <div style={{ color: 'white', marginBottom: '5px', fontWeight: 'bold' }}>
-                  Asking for {gameState?.players?.[playerId]?.hand?.[selectedCards[0]]?.rank}s
-                </div>
-                <select 
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      handleGameAction('ask_for_cards', {
-                        target_player_id: e.target.value,
-                        rank: gameState?.players?.[playerId]?.hand?.[selectedCards[0]]?.rank
-                      });
-                      setSelectedCards([]);
-                    }
-                  }}
-                  style={{
-                    padding: '10px',
-                    borderRadius: '5px',
-                    border: '1px solid #4CAF50',
-                    backgroundColor: 'white',
-                    minWidth: '200px',
-                    cursor: 'pointer',
-                    outline: 'none',
-                    fontSize: '14px'
-                  }}
-                >
-                  <option value="">Select a player to ask</option>
-                  {Object.entries(gameState.players || {})
-                    .filter(([id]) => id !== playerId)
-                    .map(([id, player]) => (
-                      <option key={id} value={id}>
-                        {player.name} ({player.hand_size} cards)
-                      </option>
-                    ))}
-                </select>
-              </div>
-            )}
-
-            {/* Instructions when it's player's turn but no card selected */}
-            {isCurrentPlayerTurn && selectedCards.length === 0 && (
-              <div style={{
-                color: 'white',
-                textAlign: 'center',
-                padding: '10px',
-                backgroundColor: 'rgba(0,0,0,0.5)',
-                borderRadius: '5px',
-                fontStyle: 'italic'
-              }}>
-                Select a card to ask for its rank
-              </div>
-            )}
-
-            {/* View Sets Button */}
-            {Object.values(gameState.completed_sets || {}).some(sets => sets.length > 0) && (
-              <button
-                onClick={() => setShowSets(true)}
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: '#2196F3',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '5px',
-                  cursor: 'pointer',
-                  marginTop: '10px',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                  transition: 'transform 0.2s ease',
-                  '&:hover': {
-                    transform: 'scale(1.05)'
-                  }
-                }}
-              >
-                View Sets ({Object.values(gameState.completed_sets).reduce((total, sets) => total + sets.length, 0)})
-              </button>
-            )}
-
-            {/* Sets Overlay */}
-            {showSets && (
-              <div style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: 'rgba(0,0,0,0.8)',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                zIndex: 10000
-              }} onClick={() => setShowSets(false)}>
-                <div style={{
-                  backgroundColor: 'white',
-                  padding: '20px',
-                  borderRadius: '10px',
-                  maxWidth: '80%',
-                  maxHeight: '80%',
-                  overflow: 'auto'
-                }} onClick={e => e.stopPropagation()}>
-                  <h3 style={{ marginTop: 0 }}>Completed Sets</h3>
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                    gap: '20px',
-                    padding: '10px'
-                  }}>
-                    {Object.entries(gameState.completed_sets || {}).map(([pid, sets]) => (
-                      <div key={pid} style={{
-                        backgroundColor: '#f5f5f5',
-                        padding: '15px',
-                        borderRadius: '8px'
-                      }}>
-                        <div style={{
-                          fontWeight: 'bold',
-                          marginBottom: '10px',
-                          color: pid === playerId ? '#4CAF50' : 'inherit'
-                        }}>
-                          {gameState.players[pid]?.name} {pid === playerId ? '(You)' : ''}
-                        </div>
-                        <div style={{ color: '#666' }}>Sets: {sets.length}</div>
-                        <div style={{
-                          display: 'flex',
-                          flexWrap: 'wrap',
-                          gap: '5px',
-                          marginTop: '10px'
-                        }}>
-                          {sets.map((set, index) => (
-                            <div key={index} style={{
-                              padding: '5px 10px',
-                              backgroundColor: 'white',
-                              borderRadius: '4px',
-                              border: '1px solid #ddd'
-                            }}>
-                              {set.rank}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <button 
-                    onClick={() => setShowSets(false)}
-                    style={{
-                      marginTop: '20px',
-                      padding: '10px 20px',
-                      backgroundColor: '#f44336',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '5px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        );
-
-      default:
-        return (
-          <div className="unsupported-game" style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            color: 'white',
-            textAlign: 'center'
-          }}>
-            Unsupported game type: {gameType}
-          </div>
-        );
-    }
-  };
-
-  const renderGameControls = () => {
-    if (!gameState) return null;
-
-    const isCurrentPlayerTurn = gameState.current_player === playerId;
-    const myHand = gameState.players?.[playerId]?.hand || [];
-
-    switch (gameType) {
-      case 'spoons':
-        return (
-          <div className="game-controls" style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '10px',
-            marginBottom: '80px' // Reduced space to fit in viewport
-          }}>
-            {isCurrentPlayerTurn && (
-              <button 
-                onClick={() => {
-                  if (selectedCards.length === 1) {
-                    handleGameAction('play_card', { card_index: selectedCards[0] });
-                    setSelectedCards([]);
-                  }
-                }}
-                className="button"
-                disabled={selectedCards.length !== 1}
-                style={{
-                  backgroundColor: selectedCards.length === 1 ? '#4CAF50' : '#ccc',
-                  color: 'white',
-                  border: 'none',
-                  padding: '10px 20px',
-                  borderRadius: '5px',
-                  cursor: selectedCards.length === 1 ? 'pointer' : 'not-allowed'
-                }}
-              >
-                Pass Card
-              </button>
-            )}
-          </div>
-        );
-
-      case 'snap':
-        return (
-          <div className="game-controls" style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '10px',
-            marginBottom: '100px' // Add space above the player's cards
-          }}>
-            {isCurrentPlayerTurn && (
-              <button 
-                onClick={() => handleGameAction('play_card')}
-                className="button"
-                style={{
-                  backgroundColor: '#4CAF50',
-                  color: 'white',
-                  border: 'none',
-                  padding: '10px 20px',
-                  borderRadius: '5px'
-                }}
-              >
-                Play Card
-              </button>
-            )}
-            <button 
-              onClick={() => handleGameAction('snap')}
-              className="button snap-button"
-              style={{
-                backgroundColor: '#f44336',
-                color: 'white',
-                border: 'none',
-                padding: '10px 20px',
-                borderRadius: '5px',
-                fontWeight: 'bold'
-              }}
-            >
-              SNAP!
-            </button>
-          </div>
-        );
-
-      case 'go_fish':
-        return (
-          <div className="game-controls" style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '10px',
-            position: 'absolute',
-            bottom: '275px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            opacity: isCurrentPlayerTurn ? '1' : '0.5',
-            transition: 'opacity 0.3s ease',
-            zIndex: 10000
           }}>
             {/* Turn indicator */}
             <div style={{
@@ -1740,79 +1276,185 @@ function GameView() {
           </div>
         );
 
-      case 'bluff':
+      case 'rummy':
         return (
-          <div className="game-controls" style={{
+          <div className="rummy-game" style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '80%',
+            maxWidth: '800px',
+            height: '60vh',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '10px',
-            marginBottom: '80px' // Reduced space to fit in viewport
+            gap: '20px'
           }}>
-            {isCurrentPlayerTurn ? (
-              <>
-                {/* Play cards face down */}
+            {/* Melds display area */}
+            <div className="melds-area" style={{
+              width: '100%',
+              minHeight: '150px',
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '20px',
+              justifyContent: 'center',
+              alignItems: 'flex-start',
+              padding: '20px',
+              backgroundColor: 'rgba(255,255,255,0.1)',
+              borderRadius: '10px'
+            }}>
+              {gameState.melds?.map((meld, meldIndex) => (
+                <div key={meldIndex} style={{
+                  display: 'flex',
+                  position: 'relative',
+                  padding: '10px',
+                  backgroundColor: 'rgba(255,255,255,0.05)',
+                  borderRadius: '8px',
+                  marginLeft: meldIndex === 0 ? '0' : '-20px'
+                }}>
+                  {renderDropZone(`meld_${meldIndex}`,
+                    meld.map((card, cardIndex) => (
+                      <div key={`${card.suit}_${card.rank}`} style={{
+                        marginLeft: cardIndex === 0 ? '0' : '-40px',
+                        transition: 'transform 0.2s ease'
+                      }}>
+                        <Card
+                          card={card}
+                          index={cardIndex}
+                          isInHand={false}
+                          canDrag={isCurrentPlayerTurn}
+                        />
+                      </div>
+                    )),
+                    {
+                      display: 'flex',
+                      minWidth: '100px',
+                      minHeight: '120px',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      border: '2px dashed rgba(255,255,255,0.2)',
+                      borderRadius: '8px',
+                      margin: '5px'
+                    }
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Center area with draw and discard piles */}
+            <div className="center-area" style={{
+              display: 'flex',
+              gap: '40px',
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginBottom: '20px'
+            }}>
+              {/* Draw pile */}
+              <div 
+                onClick={() => isCurrentPlayerTurn && handleGameAction('draw_card', { source: 'deck' })}
+                style={{
+                  cursor: isCurrentPlayerTurn ? 'pointer' : 'default',
+                  position: 'relative'
+                }}
+              >
+                {gameState.deck_size > 0 && (
+                  <Card
+                    card={{ show_back: true }}
+                    isInHand={false}
+                    canDrag={false}
+                  />
+                )}
+                <div style={{
+                  position: 'absolute',
+                  bottom: '-25px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  color: 'white',
+                  fontSize: '0.8em',
+                  whiteSpace: 'nowrap'
+                }}>
+                  Draw Pile ({gameState.deck_size})
+                </div>
+              </div>
+
+              {/* Discard pile */}
+              {renderDropZone('discard',
+                gameState.discard_pile?.slice(-1).map((card, index) => (
+                  <div key={index}>
+                    <Card
+                      card={card}
+                      index={index}
+                      isInHand={false}
+                      canDrag={false}
+                    />
+                  </div>
+                )) || [],
+                {
+                  width: '80px',
+                  height: '120px',
+                  border: '2px dashed rgba(255,255,255,0.3)',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }
+              )}
+            </div>
+
+            {/* Game controls */}
+            {isCurrentPlayerTurn && (
+              <div className="game-controls" style={{
+                display: 'flex',
+                gap: '10px',
+                position: 'absolute',
+                bottom: '200px',
+                zIndex: 1000
+              }}>
                 {selectedCards.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <select 
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          handleGameAction('play_cards', {
-                            card_indices: selectedCards,
-                            claimed_rank: e.target.value
+                  <>
+                    <button
+                      onClick={() => {
+                        handleGameAction('create_meld', {
+                          card_indices: selectedCards
+                        });
+                        setSelectedCards([]);
+                      }}
+                      style={{
+                        padding: '10px 20px',
+                        backgroundColor: '#4CAF50',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '5px',
+                        cursor: 'pointer'
+                      }}
+                      disabled={selectedCards.length < 3}
+                    >
+                      Create Meld
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (selectedCards.length === 1) {
+                          handleGameAction('discard_card', {
+                            card_index: selectedCards[0]
                           });
                           setSelectedCards([]);
                         }
                       }}
-                      className="rank-select"
                       style={{
-                        padding: '10px',
+                        padding: '10px 20px',
+                        backgroundColor: '#f44336',
+                        color: 'white',
+                        border: 'none',
                         borderRadius: '5px',
-                        border: '1px solid #ccc',
-                        backgroundColor: 'white',
-                        minWidth: '200px'
+                        cursor: 'pointer'
                       }}
+                      disabled={selectedCards.length !== 1}
                     >
-                      <option value="">Claim a rank</option>
-                      {['ACE', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'JACK', 'QUEEN', 'KING'].map(rank => (
-                        <option key={rank} value={rank}>{rank}</option>
-                      ))}
-                    </select>
-                    <div style={{ color: 'white', textAlign: 'center', fontSize: '0.8em' }}>
-                      Selected {selectedCards.length} card{selectedCards.length !== 1 ? 's' : ''}
-                    </div>
-                  </div>
+                      Discard
+                    </button>
+                  </>
                 )}
-              </>
-            ) : (
-              /* Challenge button for other players */
-              <button 
-                onClick={() => handleGameAction('challenge')}
-                className="button"
-                disabled={!gameState.last_play}
-                style={{
-                  backgroundColor: gameState.last_play ? '#f44336' : '#ccc',
-                  color: 'white',
-                  border: 'none',
-                  padding: '10px 20px',
-                  borderRadius: '5px',
-                  cursor: gameState.last_play ? 'pointer' : 'not-allowed'
-                }}
-              >
-                Challenge!
-              </button>
-            )}
-            {/* Display last claimed cards */}
-            {gameState.last_play && (
-              <div style={{ 
-                color: 'white', 
-                textAlign: 'center', 
-                marginTop: '10px',
-                padding: '5px 10px',
-                backgroundColor: 'rgba(0,0,0,0.3)',
-                borderRadius: '5px'
-              }}>
-                Last play: {gameState.players[gameState.last_play.player]?.name} claimed {gameState.last_play.count} {gameState.last_play.rank}{gameState.last_play.count !== 1 ? 's' : ''}
               </div>
             )}
           </div>
@@ -1820,112 +1462,414 @@ function GameView() {
 
       case 'scat':
         return (
-          <div className="game-controls" style={{
+          <div className="scat-game" style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '80%',
+            maxWidth: '800px',
+            height: '60vh',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '10px',
-            marginBottom: '80px' // Reduced space to fit in viewport
+            gap: '20px'
           }}>
-            {isCurrentPlayerTurn && (
-              <>
-                {/* Draw controls */}
-                {myHand.length < 3 && (
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <button
-                      onClick={() => handleGameAction('draw_card', { source: 'deck' })}
-                      className="button"
-                      style={{
-                        backgroundColor: '#4CAF50',
-                        color: 'white',
-                        border: 'none',
-                        padding: '10px 20px',
-                        borderRadius: '5px'
-                      }}
-                    >
-                      Draw from Deck
-                    </button>
-                    <button
-                      onClick={() => handleGameAction('draw_card', { source: 'discard' })}
-                      className="button"
-                      style={{
-                        backgroundColor: '#2196F3',
-                        color: 'white',
-                        border: 'none',
-                        padding: '10px 20px',
-                        borderRadius: '5px'
-                      }}
-                    >
-                      Take from Discard
-                    </button>
-                  </div>
+            {/* Center area with draw and discard piles */}
+            <div className="center-area" style={{
+              display: 'flex',
+              gap: '40px',
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginBottom: '20px'
+            }}>
+              {/* Draw pile */}
+              <div 
+                onClick={() => isCurrentPlayerTurn && handleGameAction('draw_card', { source: 'deck' })}
+                style={{
+                  cursor: isCurrentPlayerTurn ? 'pointer' : 'default',
+                  position: 'relative'
+                }}
+              >
+                {gameState.deck_size > 0 && (
+                  <Card
+                    card={{ show_back: true }}
+                    isInHand={false}
+                    canDrag={false}
+                  />
                 )}
+                <div style={{
+                  position: 'absolute',
+                  bottom: '-25px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  color: 'white',
+                  fontSize: '0.8em',
+                  whiteSpace: 'nowrap'
+                }}>
+                  Draw Pile ({gameState.deck_size})
+                </div>
+              </div>
 
-                {/* Discard control */}
-                {myHand.length > 3 && selectedCards.length === 1 && (
+              {/* Discard pile */}
+              {renderDropZone('discard',
+                gameState.discard_pile?.slice(-1).map((card, index) => (
+                  <div key={index}>
+                    <Card
+                      card={card}
+                      index={index}
+                      isInHand={false}
+                      canDrag={false}
+                    />
+                  </div>
+                )) || [],
+                {
+                  width: '80px',
+                  height: '120px',
+                  border: '2px dashed rgba(255,255,255,0.3)',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }
+              )}
+            </div>
+
+            {/* Game controls */}
+            {isCurrentPlayerTurn && (
+              <div className="game-controls" style={{
+                display: 'flex',
+                gap: '10px',
+                position: 'absolute',
+                bottom: '200px',
+                zIndex: 1000
+              }}>
+                {selectedCards.length === 1 && (
                   <button
                     onClick={() => {
-                      handleGameAction('discard_card', { card_index: selectedCards[0] });
+                      handleGameAction('discard_card', {
+                        card_index: selectedCards[0]
+                      });
                       setSelectedCards([]);
                     }}
-                    className="button"
                     style={{
+                      padding: '10px 20px',
                       backgroundColor: '#f44336',
                       color: 'white',
                       border: 'none',
-                      padding: '10px 20px',
-                      borderRadius: '5px'
-                    }}
-                  >
-                    Discard Selected Card
-                  </button>
-                )}
-
-                {/* Knock control */}
-                {myHand.length === 3 && !gameState.final_round && (
-                  <button
-                    onClick={() => handleGameAction('knock')}
-                    className="button"
-                    style={{
-                      backgroundColor: '#FFC107',
-                      color: 'black',
-                      border: 'none',
-                      padding: '10px 20px',
                       borderRadius: '5px',
-                      fontWeight: 'bold'
+                      cursor: 'pointer'
                     }}
                   >
-                    Knock!
+                    Discard
                   </button>
                 )}
-              </>
+                {selectedCards.length === 3 && (
+                  <button
+                    onClick={() => {
+                      handleGameAction('declare_scat', {
+                        card_indices: selectedCards
+                      });
+                      setSelectedCards([]);
+                    }}
+                    style={{
+                      padding: '10px 20px',
+                      backgroundColor: '#4CAF50',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '5px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Declare Scat!
+                  </button>
+                )}
+              </div>
             )}
+          </div>
+        );
 
-            {/* Display lives */}
-            <div style={{
+      case 'spades':
+        return (
+          <div className="spades-game" style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '80%',
+            maxWidth: '800px',
+            height: '60vh',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '20px'
+          }}>
+            {/* Tricks and score display */}
+            <div className="score-display" style={{
               display: 'flex',
-              gap: '20px',
-              marginTop: '10px'
+              justifyContent: 'space-around',
+              width: '100%',
+              padding: '10px',
+              backgroundColor: 'rgba(255,255,255,0.1)',
+              borderRadius: '10px',
+              marginBottom: '20px'
             }}>
-              {Object.entries(gameState.lives || {}).map(([pid, lives]) => (
-                <div key={pid} style={{
-                  color: 'white',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px'
+              {Object.entries(gameState.teams || {}).map(([team, data]) => (
+                <div key={team} style={{
+                  textAlign: 'center',
+                  padding: '10px',
+                  color: 'white'
                 }}>
-                  <span>{gameState.players[pid]?.name}: </span>
-                  {[...Array(lives)].map((_, i) => (
-                    <span key={i} style={{ color: '#FFD700' }}>♥</span>
-                  ))}
+                  <div style={{ fontSize: '1.2em', fontWeight: 'bold' }}>Team {team}</div>
+                  <div>Score: {data.score || 0}</div>
+                  <div>Tricks: {data.tricks || 0}</div>
+                  <div>Bid: {data.bid || 0}</div>
                 </div>
               ))}
             </div>
+
+            {/* Current trick display */}
+            <div className="current-trick" style={{
+              position: 'relative',
+              width: '300px',
+              height: '300px'
+            }}>
+              {gameState.current_trick?.map((play, index) => {
+                const angle = (index * 90) * (Math.PI / 180);
+                const radius = 100;
+                const x = Math.cos(angle) * radius;
+                const y = Math.sin(angle) * radius;
+                
+                return (
+                  <div key={index} style={{
+                    position: 'absolute',
+                    left: '50%',
+                    top: '50%',
+                    transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`
+                  }}>
+                    <Card
+                      card={play.card}
+                      isInHand={false}
+                      canDrag={false}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Game controls */}
+            {isCurrentPlayerTurn && (
+              <div className="game-controls" style={{
+                display: 'flex',
+                gap: '10px',
+                position: 'absolute',
+                bottom: '200px',
+                zIndex: 1000
+              }}>
+                {gameState.phase === 'bidding' ? (
+                  <div className="bidding-controls" style={{
+                    display: 'flex',
+                    gap: '10px',
+                    alignItems: 'center'
+                  }}>
+                    <input
+                      type="number"
+                      min="0"
+                      max="13"
+                      value={gameState.current_bid || 0}
+                      onChange={(e) => {
+                        const bid = Math.max(0, Math.min(13, parseInt(e.target.value) || 0));
+                        handleGameAction('place_bid', { bid });
+                      }}
+                      style={{
+                        width: '60px',
+                        padding: '5px',
+                        borderRadius: '5px',
+                        border: '1px solid #ccc'
+                      }}
+                    />
+                    <button
+                      onClick={() => handleGameAction('confirm_bid')}
+                      style={{
+                        padding: '10px 20px',
+                        backgroundColor: '#4CAF50',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '5px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Confirm Bid
+                    </button>
+                  </div>
+                ) : (
+                  selectedCards.length === 1 && (
+                    <button
+                      onClick={() => {
+                        handleGameAction('play_card', {
+                          card_index: selectedCards[0]
+                        });
+                        setSelectedCards([]);
+                      }}
+                      style={{
+                        padding: '10px 20px',
+                        backgroundColor: '#4CAF50',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '5px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Play Card
+                    </button>
+                  )
+                )}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'bluff':
+        return (
+          <div className="bluff-game" style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '80%',
+            maxWidth: '800px',
+            height: '60vh',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '20px'
+          }}>
+            {/* Center pile */}
+            <div className="center-pile" style={{
+              position: 'relative',
+              width: '120px',
+              height: '160px',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center'
+            }}>
+              {renderDropZone('center',
+                gameState.center_pile?.slice(-1).map((card, index) => (
+                  <div key={index}>
+                    <Card
+                      card={{ show_back: true }}
+                      isInHand={false}
+                      canDrag={false}
+                    />
+                  </div>
+                )) || [],
+                {
+                  width: '100%',
+                  height: '100%',
+                  border: '2px dashed rgba(255,255,255,0.3)',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }
+              )}
+              <div style={{
+                position: 'absolute',
+                bottom: '-30px',
+                color: 'white',
+                fontSize: '0.9em',
+                textAlign: 'center'
+              }}>
+                Center Pile ({gameState.center_pile_size || 0} cards)
+                {gameState.last_claim && (
+                  <div style={{ marginTop: '5px', color: '#FFD700' }}>
+                    Last claim: {gameState.last_claim.count} {gameState.last_claim.rank}s
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Game controls */}
+            {isCurrentPlayerTurn && (
+              <div className="game-controls" style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+                position: 'absolute',
+                bottom: '200px',
+                zIndex: 1000
+              }}>
+                {gameState.last_claim && (
+                  <button
+                    onClick={() => handleGameAction('call_bluff')}
+                    style={{
+                      padding: '10px 20px',
+                      backgroundColor: '#f44336',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '5px',
+                      cursor: 'pointer',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    Call Bluff!
+                  </button>
+                )}
+                
+                {selectedCards.length > 0 && (
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                    alignItems: 'center',
+                    backgroundColor: 'rgba(0,0,0,0.3)',
+                    padding: '15px',
+                    borderRadius: '10px'
+                  }}>
+                    <select
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          handleGameAction('play_cards', {
+                            card_indices: selectedCards,
+                            claimed_rank: e.target.value,
+                            count: selectedCards.length
+                          });
+                          setSelectedCards([]);
+                        }
+                      }}
+                      style={{
+                        padding: '8px',
+                        borderRadius: '5px',
+                        border: '1px solid #ccc',
+                        width: '200px'
+                      }}
+                      defaultValue=""
+                    >
+                      <option value="" disabled>Select rank to claim</option>
+                      {['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'].map(rank => (
+                        <option key={rank} value={rank}>{rank}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         );
 
       default:
-        return null;
+        return (
+          <div className="unsupported-game" style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            color: 'white',
+            textAlign: 'center'
+          }}>
+            Unsupported game type: {gameType}
+          </div>
+        );
     }
   };
 
@@ -1995,8 +1939,8 @@ function GameView() {
             </div>
           )}
 
-          {/* Game center area */}
-          {renderGameCenter()}
+          {/* Game area */}
+          {renderGame()}
 
           {/* Players around the table */}
           {gameState && Object.entries(gameState.players).map(([id, player], index) => {
@@ -2030,8 +1974,6 @@ function GameView() {
           >
             Leave Game
           </button>
-
-          {renderGameControls()}
         </div>
         <DragOverlay dropAnimation={dropAnimation}>
           {activeId ? (
