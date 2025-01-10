@@ -547,32 +547,19 @@ function GameView() {
       // Log for debugging
       console.log('Sending game action:', actionType, actionData);
 
-      // Construct request body to match the Python endpoint
-      const response = await fetch(`${BASE_URL}/game-action`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Origin': window.location.origin,
-        },
-        body: JSON.stringify({
-          room_code: roomCode,            // Ensures the server sees which room we're in
-          player_id: parseInt(playerId),  // Player ID must be numeric
-          action_type: actionType,        // e.g. "play_card", "snap", "draw_card", etc.
-          action_data: {
-            ...actionData,
-            game_type: gameType,         // e.g. "snap", "go_fish", "bluff", etc.
-          },
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to perform action');
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        throw new Error('No connection to game server');
       }
 
-      // The server might return a JSON response with the updated game state if needed
-      // Remove or modify as needed:
-      await response.json();
+      // Send game action through WebSocket
+      ws.send(JSON.stringify({
+        type: 'game_action',
+        action: {
+          action_type: actionType,
+          ...actionData,
+          game_type: gameType
+        }
+      }));
 
       // If the action was related to card selection, reset selection
       if (actionType.includes('card')) {

@@ -1084,495 +1084,6 @@ def get_leaderboard(request: Request, room_code: str):
             logger.error(f"Error getting leaderboard: {e}")
             raise HTTPException(status_code=500, detail="Error getting leaderboard")
 
-@app.post("/api/v1/game-action/")
-@app.post(f"{settings.API_V1_STR}/game-action/")
-@limiter.limit(f"{settings.RATE_LIMIT_PER_MINUTE}/minute")
-async def game_action(request: Request, action: GameAction):
-    with get_db() as conn:
-        try:
-            now = datetime.now(UTC).isoformat()
-            # Update activity timestamps at start of action
-            conn.execute(
-                """
-                UPDATE players 
-                SET last_activity = ? 
-                WHERE id = ?
-                """,
-                (now, action.player_id)
-            )
-            conn.execute(
-                """
-                UPDATE rooms 
-                SET last_activity = ? 
-                WHERE code = ?
-                """,
-                (now, action.room_code)
-            )
-            
-            logger.info(f"Processing game action: room={action.room_code}, player={action.player_id}, action={action.action_type}")
-            
-            # First get the room and game state
-            cursor = conn.execute(
-                """
-                SELECT game_state, host_id
-                FROM rooms 
-                WHERE code = ?
-                """,
-                (action.room_code,)
-            )
-            room_data = cursor.fetchone()
-            if not room_data or not room_data['game_state']:
-                raise HTTPException(status_code=404, detail="Room or game not found")
-
-            game_state_id = int(room_data['game_state'])
-            
-            # Then get the game state and player data
-            cursor = conn.execute(
-                """
-                SELECT g.*, p.*, g.game_type as game_type
-                FROM game_state g
-                JOIN players p ON p.room_code = g.room_code AND p.id = ?
-                WHERE g.id = ?
-                """,
-                (action.player_id, game_state_id)
-            )
-            result = cursor.fetchone()
-            
-            if not result:
-                logger.error(f"Game or player not found: room={action.room_code}, player={action.player_id}")
-                raise HTTPException(status_code=404, detail="Game or player not found")
-            
-            # Convert result to dictionary
-            result = dict(result)
-            
-            logger.info(f"Found game state: type={result['game_type']}")
-            
-            # Get all players in room
-            cursor = conn.execute(
-                "SELECT * FROM players WHERE room_code = ?",
-                (action.room_code,)
-            )
-            # Convert sqlite3.Row objects to dictionaries
-            players_rows = cursor.fetchall()
-            players = {}
-            for p in players_rows:
-                p_dict = dict(p)
-                players[p_dict['id']] = p_dict
-            
-            # Process game action
-            player_states = json.loads(result['players'])
-            game_data = json.loads(result['state'])
-            
-            # Convert player IDs to strings in game data
-            if isinstance(game_data, dict) and 'players' in game_data:
-                for player in game_data['players']:
-                    if isinstance(player, dict) and 'id' in player:
-                        player['id'] = str(player['id'])
-            
-            logger.info(f"Processing game action: player_id={action.player_id}, action_type={action.action_type}")
-            logger.info(f"Current player states: {player_states}")
-            logger.info(f"Current game data: {game_data}")
-            
-            try:
-                # Handle card game actions
-                logger.info(f"Game type: {result['game_type']}")
-                game_classes = {
-                    "snap": snap.SnapGame,
-                    "go_fish": go_fish.GoFishGame,
-                    "bluff": bluff.BluffGame,
-                    "scat": scat.ScatGame,
-                    "rummy": rummy.RummyGame,
-                    "kings_corner": kings_corner.KingsCornerGame,
-                    "spades": spades.SpadesGame,
-                    "spoons": spoons.SpoonsGame
-                }
-                
-                # Create game instance and restore state
-                logger.info("Creating game instance and restoring state...")
-                
-                # Get host_id from room data and ensure it's a string
-                host_id = str(room_data['host_id'])
-                logger.info(f"Host ID: {host_id}")
-                
-                try:
-                    # Create game instance
-                    game_instance = game_classes[result['game_type']](action.room_code)
-                except Exception as e:
-                    logger.error(f"Error creating game instance: {e}")
-                    raise HTTPException(status_code=500, detail=f"Error creating game instance: {str(e)}")
-                
-                # Add all players first
-                for player_id, player in players.items():
-                    str_player_id = str(player_id)
-                    is_host = (str_player_id == host_id)
-                    game_instance.add_player(str_player_id, player['username'], is_host=is_host)
-                
-                # Set game state to playing since we're restoring an active game
-                game_instance.state = GameState.PLAYING
-                
-                # Restore game state components
-                if isinstance(game_data, dict):
-                    # Check if we have valid saved state
-                    if ('deck' in game_data and 'cards' in game_data['deck'] and
-                        'players' in game_data and game_data['deck']['cards'] and
-                        'game_state_id' in game_data and str(game_data['game_state_id']) == str(result['id'])):
-                        try:
-                            # Restore deck
-                            game_instance.deck.cards = [
-                                Card(Rank(card['rank']), Suit(card['suit']))
-                                for card in game_data['deck']['cards']
-                            ]
-                            
-                            # Restore player hands
-                            all_hands_valid = True
-                            for player_id, player in game_instance.players.items():
-                                player_data = game_data['players'].get(player_id, {})
-                                
-                                # Get player's hand from game data
-                                if 'hand' in player_data and isinstance(player_data['hand'], list):
-                                    try:
-                                        player.hand = [
-                                            Card(Rank(card['rank']), Suit(card['suit']))
-                                            for card in player_data['hand']
-                                            if isinstance(card, dict) and 'rank' in card and 'suit' in card
-                                        ]
-                                    except Exception as e:
-                                        logger.error(f"Error restoring hand for player {player_id}: {e}")
-                                        all_hands_valid = False
-                                
-                                # If hand is empty or invalid but should have cards, deal new ones
-                                if not player.hand:
-                                    try:
-                                        if not game_instance.deck.cards:
-                                            game_instance.deck.reset()
-                                        # Calculate cards per hand based on game type
-                                        cards_per_hand = getattr(game_instance, 'cards_per_hand', None)
-                                        if cards_per_hand is None:
-                                            # Calculate minimum cards needed and divide by number of players
-                                            min_cards = game_instance._calculate_min_cards_needed()
-                                            cards_per_hand = min_cards // len(game_instance.players)
-                                        player.hand = game_instance.deck.draw_multiple(cards_per_hand)
-                                    except Exception as e:
-                                        logger.error(f"Error dealing new cards to player {player_id}: {e}")
-                                        all_hands_valid = False
-                            
-                            # If any hands are invalid, reinitialize the game
-                            if not all_hands_valid:
-                                logger.info("Some hands were invalid, reinitializing game")
-                                game_instance.deck.reset()
-                                game_instance.start_game()
-                            
-                            # Restore game flow control
-                            if 'current_player_idx' in game_data:
-                                game_instance.current_player_idx = game_data['current_player_idx']
-                            if 'direction' in game_data:
-                                game_instance.direction = game_data['direction']
-                            
-                            # Restore game-specific state
-                            if result['game_type'] == 'snap':
-                                if 'center_pile' in game_data and isinstance(game_data['center_pile'], list):
-                                    game_instance.center_pile = [
-                                        Card(Rank(card['rank']), Suit(card['suit']))
-                                        for card in game_data['center_pile']
-                                        if isinstance(card, dict) and 'rank' in card and 'suit' in card
-                                    ]
-                            elif result['game_type'] == 'go_fish':
-                                if 'sets' in game_data and isinstance(game_data['sets'], dict):
-                                    game_instance.sets = {
-                                        player_id: [
-                                            [Card(Rank(card['rank']), Suit(card['suit'])) for card in set_cards]
-                                            for set_cards in sets
-                                        ]
-                                        for player_id, sets in game_data['sets'].items()
-                                    }
-                        except Exception as e:
-                            logger.error(f"Error restoring game state: {e}")
-                            # Reinitialize game if restoration fails
-                            game_instance.deck.reset()
-                            game_instance.deck.shuffle()
-                            game_instance.start_game()
-                    else:
-                        # Initialize new game state
-                        logger.info("Initializing new game state")
-                        game_instance.deck.reset()
-                        game_instance.deck.shuffle()
-                        game_instance.start_game()
-                
-                # Handle get_state action type for all games
-                if action.action_type == "get_state":
-                    logger.info("Getting game state for player...")
-                    try:
-                        # Get state for specific player
-                        game_data = game_instance.get_game_state(str(action.player_id))
-                        logger.info(f"Raw game state received: {type(game_data)}")
-                        
-                        # Ensure game_data is a dictionary
-                        if not isinstance(game_data, dict):
-                            game_data = {
-                                'state': str(game_data),
-                                'room_code': action.room_code,
-                                'players': {},
-                                'current_player': None,
-                                'deck': {'cards': []},
-                                'direction': game_instance.direction,
-                                'current_player_idx': game_instance.current_player_idx
-                            }
-                        
-                        # Add game type to the state
-                        game_data["game_type"] = result['game_type']
-                        
-                        logger.info(f"Final formatted game state: {game_data}")
-                        return game_data
-                        
-                    except Exception as e:
-                        logger.error(f"Error getting game state: {e}", exc_info=True)
-                        # Return a minimal valid game state on error
-                        return {
-                            'room_code': action.room_code,
-                            'state': 'error',
-                            'game_type': result['game_type'],
-                            'error': str(e),
-                            'players': {},
-                            'current_player': None,
-                            'deck': {'cards': []},
-                            'direction': 1,
-                            'current_player_idx': 0
-                        }
-                # Process other actions based on game type
-                elif result['game_type'] == "snap":
-                    logger.info(f"Processing Snap game action: {action.action_type}")
-                    try:
-                        logger.info(f"Current game state before action: {game_instance.get_game_state()}")
-                        if action.action_type == "play_card":
-                            game_instance.play_card(str(action.player_id))
-                            game_data = game_instance.get_game_state()
-                        elif action.action_type == "snap":
-                            game_instance.snap(str(action.player_id))
-                            game_data = game_instance.get_game_state()
-                        else:
-                            raise HTTPException(status_code=400, detail="Invalid action type for Snap")
-                    except Exception as e:
-                        raise HTTPException(status_code=400, detail=str(e))
-                elif result['game_type'] == "go_fish":
-                    try:
-                        if action.action_type == "ask_for_cards":
-                            game_instance.ask_for_cards(
-                                str(action.player_id),
-                                str(action.action_data["target_player_id"]),
-                                action.action_data["rank"]
-                            )
-                            game_data = game_instance.get_game_state()
-                        else:
-                            raise HTTPException(status_code=400, detail="Invalid action type for Go Fish")
-                    except Exception as e:
-                        raise HTTPException(status_code=400, detail=str(e))
-                elif result['game_type'] == "bluff":
-                    if action.action_type == "play_cards":
-                        game_instance.play_cards(
-                            str(action.player_id),
-                            action.action_data["card_indices"],
-                            action.action_data["claimed_rank"]
-                        )
-                        game_data = game_instance.get_game_state()
-                    elif action.action_type == "challenge":
-                        game_instance.challenge(str(action.player_id))
-                        game_data = game_instance.get_game_state()
-                    else:
-                        raise HTTPException(status_code=400, detail="Invalid action type for Bluff")
-                elif result['game_type'] == "scat":
-                    if action.action_type == "draw_card":
-                        game_instance.draw_card(
-                            str(action.player_id),
-                            action.action_data.get("from_discard", False)
-                        )
-                        game_data = game_instance.get_game_state()
-                    elif action.action_type == "discard_card":
-                        game_instance.discard_card(
-                            str(action.player_id),
-                            action.action_data["card_index"]
-                        )
-                        game_data = game_instance.get_game_state()
-                    elif action.action_type == "knock":
-                        game_instance.knock(str(action.player_id))
-                        game_data = game_instance.get_game_state()
-                    else:
-                        raise HTTPException(status_code=400, detail="Invalid action type for Scat")
-                elif result['game_type'] == "rummy":
-                    if action.action_type == "draw_card":
-                        game_instance.draw_card(
-                            str(action.player_id),
-                            action.action_data.get("from_discard", False)
-                        )
-                        game_data = game_instance.get_game_state()
-                    elif action.action_type == "discard_card":
-                        game_instance.discard_card(
-                            str(action.player_id),
-                            action.action_data["card_index"]
-                        )
-                        game_data = game_instance.get_game_state()
-                    elif action.action_type == "lay_meld":
-                        game_instance.lay_meld(
-                            str(action.player_id),
-                            action.action_data["card_indices"]
-                        )
-                        game_data = game_instance.get_game_state()
-                    elif action.action_type == "add_to_meld":
-                        game_instance.add_to_meld(
-                            str(action.player_id),
-                            action.action_data["card_index"],
-                            action.action_data["meld_index"]
-                        )
-                        game_data = game_instance.get_game_state()
-                    else:
-                        raise HTTPException(status_code=400, detail="Invalid action type for Rummy")
-                elif result['game_type'] == "kings_corner":
-                    if action.action_type == "play_card":
-                        game_instance.play_card(
-                            str(action.player_id),
-                            action.action_data["card_index"],
-                            action.action_data["pile_id"]
-                        )
-                        game_data = game_instance.get_game_state()
-                    elif action.action_type == "move_pile":
-                        game_instance.move_pile(
-                            str(action.player_id),
-                            action.action_data["source_pile_id"],
-                            action.action_data["target_pile_id"]
-                        )
-                        game_data = game_instance.get_game_state()
-                    elif action.action_type == "draw_card":
-                        game_instance.draw_card(str(action.player_id))
-                        game_data = game_instance.get_game_state()
-                    elif action.action_type == "end_turn":
-                        game_instance.end_turn(str(action.player_id))
-                        game_data = game_instance.get_game_state()
-                    else:
-                        raise HTTPException(status_code=400, detail="Invalid action type for Kings Corner")
-                elif result['game_type'] == "spades":
-                    if action.action_type == "make_bid":
-                        game_instance.make_bid(
-                            str(action.player_id),
-                            action.action_data["bid"]
-                        )
-                        game_data = game_instance.get_game_state()
-                    elif action.action_type == "play_card":
-                        game_instance.play_card(
-                            str(action.player_id),
-                            action.action_data["card_index"]
-                        )
-                        game_data = game_instance.get_game_state()
-                    else:
-                        raise HTTPException(status_code=400, detail="Invalid action type for Spades")
-                
-                # Update game data with new state
-                raw_game_data = game_instance.get_game_state()
-                
-                # Format game state consistently
-                formatted_game_data = {
-                    "room_code": action.room_code,
-                    "current_player": str(game_instance.current_player_idx),
-                    "game_type": result['game_type'],
-                    "players": {
-                        str(p_id): {
-                            "id": str(p_id),
-                            "name": p.name,
-                            "hand_size": len(p.hand),
-                            "score": p.score,
-                            "is_host": p.is_host,
-                            "hand": [card.to_dict() for card in p.hand] if str(p_id) == str(action.player_id) else []
-                        }
-                        for p_id, p in game_instance.players.items()
-                    },
-                    "deck": {
-                        'cards': [card.to_dict() for card in game_instance.deck.cards]
-                    }
-                }
-                
-                # Merge game-specific state
-                if isinstance(raw_game_data, dict):
-                    formatted_game_data.update(raw_game_data)
-                else:
-                    formatted_game_data["state"] = str(raw_game_data)
-                
-                game_data = formatted_game_data
-            except Exception as e:
-                raise HTTPException(status_code=400, detail=str(e))
-            
-            # Update game state
-            try:
-                # Log game state before update
-                logger.info(f"Updating game state in database. Type: {type(game_data)}")
-                if isinstance(game_data, str):
-                    logger.info("Converting string game state to dictionary for database")
-                    game_data = {"state": game_data}
-                elif not isinstance(game_data, dict):
-                    logger.info(f"Converting {type(game_data)} game state to dictionary for database")
-                    game_data = {"state": str(game_data)}
-
-                # Ensure game_data has the game state ID
-                game_data['game_state_id'] = result['id']
-
-                # Log final game state
-                logger.info(f"Final game state for database: {json.dumps(game_data)[:200]}...")
-                
-                # Update game state with explicit status
-                conn.execute(
-                    """
-                    UPDATE game_state
-                    SET players = ?, state = ?
-                    WHERE id = ?
-                    """,
-                    (
-                        json.dumps(player_states),
-                        json.dumps(game_data),
-                        result['id']
-                    )
-                )
-            except Exception as e:
-                logger.error(f"Error updating game state: {e}")
-                raise HTTPException(status_code=500, detail=f"Error updating game state: {str(e)}")
-            
-            # Update room activity
-            conn.execute(
-                """
-                UPDATE rooms
-                SET last_activity = ?
-                WHERE code = ?
-                """,
-                (datetime.now(UTC).isoformat(), action.room_code)
-            )
-            
-            conn.commit()
-            # Format player list with host information from game state
-            players_with_host = format_player_states(player_states, players)
-            
-            # Ensure game_data is properly formatted before broadcasting
-            broadcast_game_data = game_data
-            if isinstance(game_data, str):
-                broadcast_game_data = {"state": game_data}
-            elif not isinstance(game_data, dict):
-                broadcast_game_data = {"state": str(game_data)}
-
-            # Broadcast update to all players
-            await manager.broadcast_to_room(
-                {
-                    "type": "game_update",
-                    "action": action.action_type,
-                    "player_id": action.player_id,
-                    "result": {"success": True},
-                    "players": players_with_host,
-                    "game_state": broadcast_game_data
-                },
-                action.room_code
-            )
-            
-            return game_data
-            
-        except sqlite3.Error as e:
-            conn.rollback()
-            logger.error(f"Error processing game action: {e}")
-            raise HTTPException(status_code=500, detail="Error processing game action")
-
 @app.websocket("/ws/{room_code}/{player_id}")
 @app.websocket(f"{settings.API_V1_STR}/ws/{{room_code}}/{{player_id}}")
 async def websocket_endpoint(websocket: WebSocket, room_code: str, player_id: int):
@@ -1702,6 +1213,484 @@ async def process_websocket_message(websocket: WebSocket, data: dict, room_code:
             except Exception as e:
                 logger.error(f"Error processing get_state: {e}")
                 raise
+
+        elif message_type == 'game_action':
+            try:
+                now = datetime.now(UTC).isoformat()
+                action_data = data.get('action', {})
+                
+                with get_db() as conn:
+                    # Update activity timestamps at start of action
+                    conn.execute(
+                        """
+                        UPDATE players 
+                        SET last_activity = ? 
+                        WHERE id = ?
+                        """,
+                        (now, player_id)
+                    )
+                    conn.execute(
+                        """
+                        UPDATE rooms 
+                        SET last_activity = ? 
+                        WHERE code = ?
+                        """,
+                        (now, room_code)
+                    )
+                    
+                    logger.info(f"Processing game action: room={room_code}, player={player_id}, action={action_data.get('action_type')}")
+                    
+                    # First get the room and game state
+                    cursor = conn.execute(
+                        """
+                        SELECT game_state, host_id
+                        FROM rooms 
+                        WHERE code = ?
+                        """,
+                        (room_code,)
+                    )
+                    room_data = cursor.fetchone()
+                    if not room_data or not room_data['game_state']:
+                        await websocket.send_json({
+                            "type": "error",
+                            "message": "Room or game not found"
+                        })
+                        return
+
+                    game_state_id = int(room_data['game_state'])
+                    
+                    # Then get the game state and player data
+                    cursor = conn.execute(
+                        """
+                        SELECT g.*, p.*, g.game_type as game_type
+                        FROM game_state g
+                        JOIN players p ON p.room_code = g.room_code AND p.id = ?
+                        WHERE g.id = ?
+                        """,
+                        (player_id, game_state_id)
+                    )
+                    result = cursor.fetchone()
+                    
+                    if not result:
+                        logger.error(f"Game or player not found: room={room_code}, player={player_id}")
+                        await websocket.send_json({
+                            "type": "error",
+                            "message": "Game or player not found"
+                        })
+                        return
+                    
+                    # Convert result to dictionary
+                    result = dict(result)
+                    
+                    logger.info(f"Found game state: type={result['game_type']}")
+                    
+                    # Get all players in room
+                    cursor = conn.execute(
+                        "SELECT * FROM players WHERE room_code = ?",
+                        (room_code,)
+                    )
+                    # Convert sqlite3.Row objects to dictionaries
+                    players_rows = cursor.fetchall()
+                    players = {}
+                    for p in players_rows:
+                        p_dict = dict(p)
+                        players[p_dict['id']] = p_dict
+                    
+                    # Process game action
+                    player_states = json.loads(result['players'])
+                    game_data = json.loads(result['state'])
+                    
+                    # Convert player IDs to strings in game data
+                    if isinstance(game_data, dict) and 'players' in game_data:
+                        for player in game_data['players']:
+                            if isinstance(player, dict) and 'id' in player:
+                                player['id'] = str(player['id'])
+                    
+                    logger.info(f"Processing game action: player_id={player_id}, action_type={action_data.get('action_type')}")
+                    logger.info(f"Current player states: {player_states}")
+                    logger.info(f"Current game data: {game_data}")
+                    
+                    try:
+                        # Handle card game actions
+                        logger.info(f"Game type: {result['game_type']}")
+                        game_classes = {
+                            "snap": snap.SnapGame,
+                            "go_fish": go_fish.GoFishGame,
+                            "bluff": bluff.BluffGame,
+                            "scat": scat.ScatGame,
+                            "rummy": rummy.RummyGame,
+                            "kings_corner": kings_corner.KingsCornerGame,
+                            "spades": spades.SpadesGame,
+                            "spoons": spoons.SpoonsGame
+                        }
+                        
+                        # Create game instance and restore state
+                        logger.info("Creating game instance and restoring state...")
+                        
+                        # Get host_id from room data and ensure it's a string
+                        host_id = str(room_data['host_id'])
+                        logger.info(f"Host ID: {host_id}")
+                        
+                        try:
+                            # Create game instance
+                            game_instance = game_classes[result['game_type']](room_code)
+                        except Exception as e:
+                            logger.error(f"Error creating game instance: {e}")
+                            await websocket.send_json({
+                                "type": "error",
+                                "message": f"Error creating game instance: {str(e)}"
+                            })
+                            return
+                        
+                        # Add all players first
+                        for player_id, player in players.items():
+                            str_player_id = str(player_id)
+                            is_host = (str_player_id == host_id)
+                            game_instance.add_player(str_player_id, player['username'], is_host=is_host)
+                        
+                        # Set game state to playing since we're restoring an active game
+                        game_instance.state = GameState.PLAYING
+                        
+                        # Restore game state components
+                        if isinstance(game_data, dict):
+                            # Check if we have valid saved state
+                            if ('deck' in game_data and 'cards' in game_data['deck'] and
+                                'players' in game_data and game_data['deck']['cards'] and
+                                'game_state_id' in game_data and str(game_data['game_state_id']) == str(result['id'])):
+                                try:
+                                    # Restore deck
+                                    game_instance.deck.cards = [
+                                        Card(Rank(card['rank']), Suit(card['suit']))
+                                        for card in game_data['deck']['cards']
+                                    ]
+                                    
+                                    # Restore player hands
+                                    all_hands_valid = True
+                                    for player_id, player in game_instance.players.items():
+                                        player_data = game_data['players'].get(player_id, {})
+                                        
+                                        # Get player's hand from game data
+                                        if 'hand' in player_data and isinstance(player_data['hand'], list):
+                                            try:
+                                                player.hand = [
+                                                    Card(Rank(card['rank']), Suit(card['suit']))
+                                                    for card in player_data['hand']
+                                                    if isinstance(card, dict) and 'rank' in card and 'suit' in card
+                                                ]
+                                            except Exception as e:
+                                                logger.error(f"Error restoring hand for player {player_id}: {e}")
+                                                all_hands_valid = False
+                                        
+                                        # If hand is empty or invalid but should have cards, deal new ones
+                                        if not player.hand:
+                                            try:
+                                                if not game_instance.deck.cards:
+                                                    game_instance.deck.reset()
+                                                # Calculate cards per hand based on game type
+                                                cards_per_hand = getattr(game_instance, 'cards_per_hand', None)
+                                                if cards_per_hand is None:
+                                                    # Calculate minimum cards needed and divide by number of players
+                                                    min_cards = game_instance._calculate_min_cards_needed()
+                                                    cards_per_hand = min_cards // len(game_instance.players)
+                                                player.hand = game_instance.deck.draw_multiple(cards_per_hand)
+                                            except Exception as e:
+                                                logger.error(f"Error dealing new cards to player {player_id}: {e}")
+                                                all_hands_valid = False
+                                    
+                                    # If any hands are invalid, reinitialize the game
+                                    if not all_hands_valid:
+                                        logger.info("Some hands were invalid, reinitializing game")
+                                        game_instance.deck.reset()
+                                        game_instance.start_game()
+                                    
+                                    # Restore game flow control
+                                    if 'current_player_idx' in game_data:
+                                        game_instance.current_player_idx = game_data['current_player_idx']
+                                    if 'direction' in game_data:
+                                        game_instance.direction = game_data['direction']
+                                    
+                                    # Restore game-specific state
+                                    if result['game_type'] == 'snap':
+                                        if 'center_pile' in game_data and isinstance(game_data['center_pile'], list):
+                                            game_instance.center_pile = [
+                                                Card(Rank(card['rank']), Suit(card['suit']))
+                                                for card in game_data['center_pile']
+                                                if isinstance(card, dict) and 'rank' in card and 'suit' in card
+                                            ]
+                                    elif result['game_type'] == 'go_fish':
+                                        if 'sets' in game_data and isinstance(game_data['sets'], dict):
+                                            game_instance.sets = {
+                                                player_id: [
+                                                    [Card(Rank(card['rank']), Suit(card['suit'])) for card in set_cards]
+                                                    for set_cards in sets
+                                                ]
+                                                for player_id, sets in game_data['sets'].items()
+                                            }
+                                except Exception as e:
+                                    logger.error(f"Error restoring game state: {e}")
+                                    # Reinitialize game if restoration fails
+                                    game_instance.deck.reset()
+                                    game_instance.deck.shuffle()
+                                    game_instance.start_game()
+                            else:
+                                # Initialize new game state
+                                logger.info("Initializing new game state")
+                                game_instance.deck.reset()
+                                game_instance.deck.shuffle()
+                                game_instance.start_game()
+                        
+                        # Process game actions based on game type
+                        action_type = action_data.get('action_type')
+                        if result['game_type'] == "snap":
+                            logger.info(f"Processing Snap game action: {action_type}")
+                            try:
+                                logger.info(f"Current game state before action: {game_instance.get_game_state()}")
+                                if action_type == "play_card":
+                                    game_instance.play_card(str(player_id))
+                                    game_data = game_instance.get_game_state()
+                                elif action_type == "snap":
+                                    game_instance.snap(str(player_id))
+                                    game_data = game_instance.get_game_state()
+                                else:
+                                    await websocket.send_json({
+                                        "type": "error",
+                                        "message": "Invalid action type for Snap"
+                                    })
+                                    return
+                            except Exception as e:
+                                await websocket.send_json({
+                                    "type": "error",
+                                    "message": str(e)
+                                })
+                                return
+                        elif result['game_type'] == "go_fish":
+                            try:
+                                if action_type == "ask_for_cards":
+                                    game_instance.ask_for_cards(
+                                        str(player_id),
+                                        str(action_data.get("target_player_id")),
+                                        action_data.get("rank")
+                                    )
+                                    game_data = game_instance.get_game_state()
+                                else:
+                                    await websocket.send_json({
+                                        "type": "error",
+                                        "message": "Invalid action type for Go Fish"
+                                    })
+                                    return
+                            except Exception as e:
+                                await websocket.send_json({
+                                    "type": "error",
+                                    "message": str(e)
+                                })
+                                return
+                        elif result['game_type'] == "bluff":
+                            if action_type == "play_cards":
+                                game_instance.play_cards(
+                                    str(player_id),
+                                    action_data.get("card_indices"),
+                                    action_data.get("claimed_rank")
+                                )
+                                game_data = game_instance.get_game_state()
+                            elif action_type == "challenge":
+                                game_instance.challenge(str(player_id))
+                                game_data = game_instance.get_game_state()
+                            else:
+                                await websocket.send_json({
+                                    "type": "error",
+                                    "message": "Invalid action type for Bluff"
+                                })
+                                return
+                        elif result['game_type'] == "scat":
+                            if action_type == "draw_card":
+                                game_instance.draw_card(
+                                    str(player_id),
+                                    action_data.get("from_discard", False)
+                                )
+                                game_data = game_instance.get_game_state()
+                            elif action_type == "discard_card":
+                                game_instance.discard_card(
+                                    str(player_id),
+                                    action_data.get("card_index")
+                                )
+                                game_data = game_instance.get_game_state()
+                            elif action_type == "knock":
+                                game_instance.knock(str(player_id))
+                                game_data = game_instance.get_game_state()
+                            else:
+                                await websocket.send_json({
+                                    "type": "error",
+                                    "message": "Invalid action type for Scat"
+                                })
+                                return
+                        elif result['game_type'] == "rummy":
+                            if action_type == "draw_card":
+                                game_instance.draw_card(
+                                    str(player_id),
+                                    action_data.get("from_discard", False)
+                                )
+                                game_data = game_instance.get_game_state()
+                            elif action_type == "discard_card":
+                                game_instance.discard_card(
+                                    str(player_id),
+                                    action_data.get("card_index")
+                                )
+                                game_data = game_instance.get_game_state()
+                            elif action_type == "lay_meld":
+                                game_instance.lay_meld(
+                                    str(player_id),
+                                    action_data.get("card_indices")
+                                )
+                                game_data = game_instance.get_game_state()
+                            elif action_type == "add_to_meld":
+                                game_instance.add_to_meld(
+                                    str(player_id),
+                                    action_data.get("card_index"),
+                                    action_data.get("meld_index")
+                                )
+                                game_data = game_instance.get_game_state()
+                            else:
+                                await websocket.send_json({
+                                    "type": "error",
+                                    "message": "Invalid action type for Rummy"
+                                })
+                                return
+                        elif result['game_type'] == "kings_corner":
+                            if action_type == "play_card":
+                                game_instance.play_card(
+                                    str(player_id),
+                                    action_data.get("card_index"),
+                                    action_data.get("pile_id")
+                                )
+                                game_data = game_instance.get_game_state()
+                            elif action_type == "move_pile":
+                                game_instance.move_pile(
+                                    str(player_id),
+                                    action_data.get("source_pile_id"),
+                                    action_data.get("target_pile_id")
+                                )
+                                game_data = game_instance.get_game_state()
+                            elif action_type == "draw_card":
+                                game_instance.draw_card(str(player_id))
+                                game_data = game_instance.get_game_state()
+                            elif action_type == "end_turn":
+                                game_instance.end_turn(str(player_id))
+                                game_data = game_instance.get_game_state()
+                            else:
+                                await websocket.send_json({
+                                    "type": "error",
+                                    "message": "Invalid action type for Kings Corner"
+                                })
+                                return
+                        elif result['game_type'] == "spades":
+                            if action_type == "make_bid":
+                                game_instance.make_bid(
+                                    str(player_id),
+                                    action_data.get("bid")
+                                )
+                                game_data = game_instance.get_game_state()
+                            elif action_type == "play_card":
+                                game_instance.play_card(
+                                    str(player_id),
+                                    action_data.get("card_index")
+                                )
+                                game_data = game_instance.get_game_state()
+                            else:
+                                await websocket.send_json({
+                                    "type": "error",
+                                    "message": "Invalid action type for Spades"
+                                })
+                                return
+                        
+                        # Update game data with new state
+                        raw_game_data = game_instance.get_game_state()
+                        
+                        # Format game state consistently
+                        formatted_game_data = {
+                            "room_code": room_code,
+                            "current_player": str(game_instance.current_player_idx),
+                            "game_type": result['game_type'],
+                            "players": {
+                                str(p_id): {
+                                    "id": str(p_id),
+                                    "name": p.name,
+                                    "hand_size": len(p.hand),
+                                    "score": p.score,
+                                    "is_host": p.is_host,
+                                    "hand": [card.to_dict() for card in p.hand] if str(p_id) == str(player_id) else []
+                                }
+                                for p_id, p in game_instance.players.items()
+                            },
+                            "deck": {
+                                'cards': [card.to_dict() for card in game_instance.deck.cards]
+                            }
+                        }
+                        
+                        # Merge game-specific state
+                        if isinstance(raw_game_data, dict):
+                            formatted_game_data.update(raw_game_data)
+                        else:
+                            formatted_game_data["state"] = str(raw_game_data)
+                        
+                        game_data = formatted_game_data
+                        
+                        # Update game state in database
+                        conn.execute(
+                            """
+                            UPDATE game_state
+                            SET players = ?, state = ?
+                            WHERE id = ?
+                            """,
+                            (
+                                json.dumps(player_states),
+                                json.dumps(game_data),
+                                result['id']
+                            )
+                        )
+                        
+                        # Update room activity
+                        conn.execute(
+                            """
+                            UPDATE rooms
+                            SET last_activity = ?
+                            WHERE code = ?
+                            """,
+                            (datetime.now(UTC).isoformat(), room_code)
+                        )
+                        
+                        conn.commit()
+                        
+                        # Format player list with host information from game state
+                        players_with_host = format_player_states(player_states, players)
+                        
+                        # Broadcast update to all players
+                        await manager.broadcast_to_room(
+                            {
+                                "type": "game_update",
+                                "action": action_type,
+                                "player_id": player_id,
+                                "result": {"success": True},
+                                "players": players_with_host,
+                                "game_state": game_data
+                            },
+                            room_code
+                        )
+                        
+                    except Exception as e:
+                        logger.error(f"Error processing game action: {e}")
+                        await websocket.send_json({
+                            "type": "error",
+                            "message": str(e)
+                        })
+                        return
+                    
+            except sqlite3.Error as e:
+                logger.error(f"Database error processing game action: {e}")
+                await websocket.send_json({
+                    "type": "error",
+                    "message": "Error processing game action"
+                })
+                return
 
         elif message_type == 'chat':
             # Rate limit: 1 message per second, 30 messages per minute

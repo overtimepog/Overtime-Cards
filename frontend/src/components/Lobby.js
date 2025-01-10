@@ -257,26 +257,16 @@ function Lobby() {
 
   const handleStartGame = async () => {
     try {
-      const response = await fetch(`${BASE_URL}/start-game/`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Origin': window.location.origin
-        },
-        body: JSON.stringify({
-          room_code: roomCode,
-          game_type: selectedGame
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to start game');
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        throw new Error('No connection to game server');
       }
 
-      const data = await response.json();
-      console.log('Game started:', data);
+      ws.send(JSON.stringify({
+        type: 'start_game',
+        game_type: selectedGame
+      }));
+
+      console.log('Start game request sent');
     } catch (err) {
       console.error('Error:', err);
       setError(err.message || 'Failed to start game');
@@ -306,32 +296,14 @@ function Lobby() {
 
   const handleLeaveRoom = async () => {
     try {
-      // Send leave_room message through WebSocket first
+      // Send leave_room message through WebSocket
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ 
-          type: 'leave_room',
-          player_id: playerId,
-          username: username
+          type: 'leave_room'
         }));
         
         // Give the WebSocket message time to propagate
         await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      
-      // Call leave room API endpoint
-      const response = await fetch(`${BASE_URL}/rooms/${roomCode}/leave`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Origin': window.location.origin
-        },
-        body: JSON.stringify({ username })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to leave room');
       }
     } catch (err) {
       console.error('Error leaving room:', err);
