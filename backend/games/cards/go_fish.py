@@ -56,10 +56,15 @@ class GoFishGame(BaseGame):
             if not asking_player or not target_player:
                 raise ValueError("Player not found")
 
-            if asking_player.id != self.current_player.id:
+            if str(asking_player.id) != str(self.current_player.id):
+                print(f"Current player: {str(self.current_player.id)}")
+                print(f"Asking player: {str(asking_player.id)}")
+                print(f"Target player: {str(target_player.id)}")
+                #whos turn is it?
+                print(f"Whose turn is it? {self.current_player.id}")
                 raise ValueError("Not your turn")
 
-            if asking_player.id == target_player.id:
+            if str(asking_player.id) == str(target_player.id):
                 raise ValueError("Cannot ask yourself for cards")
 
             # Check if asking player has a card of the requested rank
