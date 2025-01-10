@@ -1143,11 +1143,21 @@ function GameView() {
               justifyContent: 'center',
               alignItems: 'center'
             }}>
-              <div style={{
-                position: 'relative',
-                cursor: isCurrentPlayerTurn ? 'pointer' : 'default'
-              }}>
-                {gameState.deck_size > 0 && renderCard({ show_back: true }, 0, false)}
+              <div 
+                onClick={() => isCurrentPlayerTurn && gameState.last_action?.action === 'go_fish' && 
+                  gameState.last_action.player === playerId && handleGameAction('draw_card')}
+                style={{
+                  position: 'relative',
+                  cursor: (isCurrentPlayerTurn && gameState.last_action?.action === 'go_fish' && 
+                    gameState.last_action.player === playerId) ? 'pointer' : 'default',
+                  transition: 'transform 0.2s ease',
+                  transform: (isCurrentPlayerTurn && gameState.last_action?.action === 'go_fish' && 
+                    gameState.last_action.player === playerId) ? 'scale(1.05)' : 'none'
+                }}
+                className={isCurrentPlayerTurn && gameState.last_action?.action === 'go_fish' && 
+                  gameState.last_action.player === playerId ? 'pulse' : ''}
+              >
+                {gameState.cards_in_deck > 0 && renderCard({ show_back: true }, 0, false)}
                 <div style={{
                   position: 'absolute',
                   bottom: '-25px',
@@ -1155,9 +1165,10 @@ function GameView() {
                   transform: 'translateX(-50%)',
                   color: 'white',
                   fontSize: '0.8em',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
+                  textAlign: 'center'
                 }}>
-                  Draw Pile ({gameState.deck_size})
+                  Draw Pile ({gameState.cards_in_deck || 0})
                 </div>
               </div>
             </div>
@@ -1492,15 +1503,20 @@ function GameView() {
             }}>
               {/* Draw pile */}
               <div 
-                onClick={() => isCurrentPlayerTurn && handleGameAction('draw_card', { source: 'deck' })}
+                onClick={() => isCurrentPlayerTurn && gameState.last_action?.action === 'go_fish' && 
+                  gameState.last_action.player === playerId && handleGameAction('draw_card')}
                 style={{
-                  cursor: isCurrentPlayerTurn ? 'pointer' : 'default',
-                  position: 'relative'
+                  position: 'relative',
+                  cursor: (isCurrentPlayerTurn && gameState.last_action?.action === 'go_fish' && 
+                    gameState.last_action.player === playerId) ? 'pointer' : 'default',
+                  transition: 'transform 0.2s ease',
+                  transform: (isCurrentPlayerTurn && gameState.last_action?.action === 'go_fish' && 
+                    gameState.last_action.player === playerId) ? 'scale(1.05)' : 'none'
                 }}
+                className={isCurrentPlayerTurn && gameState.last_action?.action === 'go_fish' && 
+                  gameState.last_action.player === playerId ? 'pulse' : ''}
               >
-                {gameState.deck_size > 0 && (
-                  renderCard({ show_back: true }, 0, false)
-                )}
+                {gameState.cards_in_deck > 0 && renderCard({ show_back: true }, 0, false)}
                 <div style={{
                   position: 'absolute',
                   bottom: '-25px',
@@ -1508,9 +1524,10 @@ function GameView() {
                   transform: 'translateX(-50%)',
                   color: 'white',
                   fontSize: '0.8em',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
+                  textAlign: 'center'
                 }}>
-                  Draw Pile ({gameState.deck_size})
+                  Draw Pile ({gameState.cards_in_deck || 0})
                 </div>
               </div>
 
@@ -1618,15 +1635,20 @@ function GameView() {
             }}>
               {/* Draw pile */}
               <div 
-                onClick={() => isCurrentPlayerTurn && handleGameAction('draw_card', { source: 'deck' })}
+                onClick={() => isCurrentPlayerTurn && gameState.last_action?.action === 'go_fish' && 
+                  gameState.last_action.player === playerId && handleGameAction('draw_card')}
                 style={{
-                  cursor: isCurrentPlayerTurn ? 'pointer' : 'default',
-                  position: 'relative'
+                  position: 'relative',
+                  cursor: (isCurrentPlayerTurn && gameState.last_action?.action === 'go_fish' && 
+                    gameState.last_action.player === playerId) ? 'pointer' : 'default',
+                  transition: 'transform 0.2s ease',
+                  transform: (isCurrentPlayerTurn && gameState.last_action?.action === 'go_fish' && 
+                    gameState.last_action.player === playerId) ? 'scale(1.05)' : 'none'
                 }}
+                className={isCurrentPlayerTurn && gameState.last_action?.action === 'go_fish' && 
+                  gameState.last_action.player === playerId ? 'pulse' : ''}
               >
-                {gameState.deck_size > 0 && (
-                  renderCard({ show_back: true }, 0, false)
-                )}
+                {gameState.cards_in_deck > 0 && renderCard({ show_back: true }, 0, false)}
                 <div style={{
                   position: 'absolute',
                   bottom: '-25px',
@@ -1634,9 +1656,10 @@ function GameView() {
                   transform: 'translateX(-50%)',
                   color: 'white',
                   fontSize: '0.8em',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
+                  textAlign: 'center'
                 }}>
-                  Draw Pile ({gameState.deck_size})
+                  Draw Pile ({gameState.cards_in_deck || 0})
                 </div>
               </div>
 
