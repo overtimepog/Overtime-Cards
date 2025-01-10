@@ -1193,7 +1193,7 @@ function GameView() {
               alignItems: 'center',
               gap: '10px',
               position: 'absolute',
-              bottom: '275px',
+              bottom: '210px',
               left: '50%',
               transform: 'translateX(-50%)',
               opacity: isCurrentPlayerTurn ? '1' : '0.5',
@@ -1233,7 +1233,7 @@ function GameView() {
                   {gameState.last_action.action === 'go_fish' ? (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
                       <span className="fade-in">
-                        {gameState.players[gameState.last_action.player]?.name} asked for {gameState.last_action.rank}s - Go Fish!
+                        {gameState.players[gameState.last_action.player]?.name} didn't have card rank "{gameState.last_action.rank}", time for {gameState.players[gameState.current_player]?.name} to draw a card!
                       </span>
                       {gameState.last_action.player === playerId && (
                         <button
