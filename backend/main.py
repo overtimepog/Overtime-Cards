@@ -1519,7 +1519,7 @@ async def game_action(request: Request, action: GameAction):
                 conn.execute(
                     """
                     UPDATE game_state
-                    SET players = ?, state = ?, status = 'active'
+                    SET players = ?, state = ?
                     WHERE id = ?
                     """,
                     (
