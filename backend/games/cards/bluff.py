@@ -9,6 +9,7 @@ class BluffGame(BaseGame):
         self.last_action: Optional[Dict[str, Any]] = None
         self.current_rank: Optional[Rank] = None  # The rank that must be played next
         self.cards_per_play = 1  # Number of cards that must be played (can increase with multiple same-rank cards)
+        self.max_selectable_cards = 4  # Players can play up to 4 cards of the same rank
 
     def _calculate_min_cards_needed(self) -> int:
         """Calculate minimum cards needed for Bluff"""

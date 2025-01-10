@@ -8,6 +8,7 @@ class RummyGame(BaseGame):
         self.last_action: Optional[Dict[str, Any]] = None
         self.melds: Dict[str, List[List[Card]]] = {}  # Player ID to list of melds
         self.cards_per_hand = 7  # Standard Rummy deals 7 cards
+        self.max_selectable_cards = 7  # Players can lay down melds of up to 7 cards
 
     def _calculate_min_cards_needed(self) -> int:
         """Calculate minimum cards needed for Rummy"""

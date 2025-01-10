@@ -8,8 +8,9 @@ class ScatGame(BaseGame):
         self.last_action: Optional[Dict[str, Any]] = None
         self.knocked_player_id: Optional[str] = None  # ID of player who knocked
         self.final_round = False  # True when someone knocks
-        self.lives = {}  # Player ID to number of lives (usually 3)
+        self.lives: Dict[str, int] = {}  # Player ID to number of lives (usually 3)
         self.INITIAL_LIVES = 3
+        self.max_selectable_cards = 1  # Players select one card to discard
 
     def _calculate_min_cards_needed(self) -> int:
         """Calculate minimum cards needed for Scat"""

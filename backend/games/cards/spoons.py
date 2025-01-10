@@ -11,6 +11,7 @@ class SpoonsGame(BaseGame):
         self.last_action: Optional[Dict[str, Any]] = None
         self.cards_per_hand = 4  # Each player gets 4 cards
         self.spoons_taken = set()  # Set of player IDs who have taken spoons
+        self.max_selectable_cards = 1  # Players select one card to pass
 
     def _calculate_min_cards_needed(self) -> int:
         """Calculate minimum cards needed for Spoons"""

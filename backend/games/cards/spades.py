@@ -12,6 +12,7 @@ class SpadesGame(BaseGame):
         self.spades_broken = False
         self.target_score = 500
         self.required_players = 4  # Spades requires exactly 4 players
+        self.max_selectable_cards = 1  # Players select one card to play
 
     def _calculate_min_cards_needed(self) -> int:
         """Calculate minimum cards needed for Spades"""

@@ -496,21 +496,25 @@ function GameView() {
       // Clear any previous errors
       setError('');
 
-      // Send game action via HTTP POST with correct URL structure
-      const response = await fetch(`${BASE_URL}/rooms/${roomCode}/game-action`, {
+      // Log for debugging
+      console.log('Sending game action:', actionType, actionData);
+
+      // Construct request body to match the Python endpoint
+      const response = await fetch(`${BASE_URL}/game-action`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Origin': window.location.origin
+          'Origin': window.location.origin,
         },
         body: JSON.stringify({
-          action_type: actionType,
+          room_code: roomCode,            // Ensures the server sees which room we're in
+          player_id: parseInt(playerId),  // Player ID must be numeric
+          action_type: actionType,        // e.g. "play_card", "snap", "draw_card", etc.
           action_data: {
             ...actionData,
-            game_type: gameType
+            game_type: gameType,         // e.g. "snap", "go_fish", "bluff", etc.
           },
-          player_id: parseInt(playerId)
-        })
+        }),
       });
 
       if (!response.ok) {
@@ -518,9 +522,10 @@ function GameView() {
         throw new Error(errorData.detail || 'Failed to perform action');
       }
 
-      // Remove the unused result assignment
+      // The server might return a JSON response with the updated game state if needed
+      // Remove or modify as needed:
       await response.json();
-      
+
       // If the action was related to card selection, reset selection
       if (actionType.includes('card')) {
         setSelectedCards([]);
@@ -537,23 +542,23 @@ function GameView() {
     }
   };
 
-  const handleCardClick = (cardIndex) => { //after its clicked / selected it will be added to the selectedCards array, it then needs to have new css applied to position its z index above the rest and keep it in the same position till its clicked again
-    if (!gameState?.players?.[playerId]?.hand) return;
-    
-    if (gameType === 'go_fish') {
-      // For Go Fish, only allow single card selection
-      setSelectedCards(prev => 
-        prev.includes(cardIndex) ? [] : [cardIndex]
-      );
+  const handleCardClick = (index) => {
+    if (!isCurrentPlayerTurn) return;
+
+    const maxSelectable = gameState?.max_selectable_cards || 1;
+
+    if (selectedCards.includes(index)) {
+      // If card is already selected, deselect it
+      setSelectedCards(selectedCards.filter(i => i !== index));
     } else {
-      // For other games, allow multiple card selection
-      setSelectedCards(prev => {
-        const isSelected = prev.includes(cardIndex);
-        if (isSelected) {
-          return prev.filter(i => i !== cardIndex);
-        }
-        return [...prev, cardIndex];
-      });
+      // If card is not selected, check if we can select more cards
+      if (selectedCards.length >= maxSelectable) {
+        // Show warning if trying to select more than allowed
+        setError(`You can only select up to ${maxSelectable} card${maxSelectable !== 1 ? 's' : ''} at a time`);
+        setTimeout(() => setError(''), 3000); // Clear error after 3 seconds
+        return;
+      }
+      setSelectedCards([...selectedCards, index]);
     }
   };
 

@@ -158,6 +158,7 @@ class BaseGame:
         self.state = GameState.WAITING
         self.current_player_idx = 0
         self.direction = 1  # 1 for clockwise, -1 for counter-clockwise
+        self.max_selectable_cards = 0  # Default to 0 - most games don't need card selection
 
     @property
     def player_order(self) -> List[Player]:
@@ -233,7 +234,7 @@ class BaseGame:
         self.current_player_idx = (self.current_player_idx + self.direction) % len(self.players)
 
     def get_game_state(self, for_player_id: Optional[str] = None) -> Dict[str, Any]:
-        """Get the current game state - override in specific games"""
+        """Get the current game state"""
         try:
             # Find the host player
             host_player = next((p for p in self.players.values() if p.is_host), None)
@@ -270,7 +271,8 @@ class BaseGame:
                 'current_player': current_player_id,
                 'deck': {'cards_remaining': len(self.deck.cards)},  # Only send count, not actual cards
                 'direction': self.direction,
-                'current_player_idx': self.current_player_idx
+                'current_player_idx': self.current_player_idx,
+                'max_selectable_cards': self.max_selectable_cards  # Add max_selectable_cards to game state
             }
             
             return game_state

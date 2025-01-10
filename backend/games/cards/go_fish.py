@@ -6,6 +6,7 @@ class GoFishGame(BaseGame):
         super().__init__(room_code)
         self.sets: Dict[str, List[List[Card]]] = {}  # player_id -> list of sets
         self.last_action: Optional[Dict[str, Any]] = None
+        self.max_selectable_cards = 1  # Players select one card to ask for
 
     def _calculate_min_cards_needed(self) -> int:
         """Calculate minimum cards needed for Go Fish"""
