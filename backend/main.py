@@ -241,9 +241,9 @@ GAME_TYPES = {
     }
 }
 
-# Helper function to generate room code
+# Helper function to generate room code, only uppercase letters
 def generate_room_code():
-    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    return ''.join(random.choices(string.ascii_uppercase, k=6))
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
