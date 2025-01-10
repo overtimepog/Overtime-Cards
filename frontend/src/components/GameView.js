@@ -1096,8 +1096,67 @@ function GameView() {
               {isCurrentPlayerTurn ? "Your Turn!" : `${gameState.players[gameState.current_player]?.name}'s Turn`}
             </div>
 
+            {/* Last action display */}
+            {gameState.last_action && (
+              <div style={{
+                color: 'white',
+                textAlign: 'center',
+                padding: '10px 20px',
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                borderRadius: '5px',
+                marginBottom: '10px',
+                animation: 'fadeIn 0.3s ease'
+              }}>
+                {gameState.last_action.action === 'go_fish' ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                    <span>
+                      {gameState.players[gameState.last_action.player]?.name} asked for {gameState.last_action.rank}s - Go Fish!
+                    </span>
+                    {gameState.last_action.player === playerId && (
+                      <button
+                        onClick={() => handleGameAction('draw_card')}
+                        style={{
+                          padding: '8px 16px',
+                          backgroundColor: '#4CAF50',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '5px',
+                          cursor: 'pointer',
+                          animation: 'pulse 1.5s infinite'
+                        }}
+                      >
+                        Draw a Card
+                      </button>
+                    )}
+                  </div>
+                ) : gameState.last_action.action === 'got_cards' ? (
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '5px'
+                  }}>
+                    <span style={{
+                      animation: 'bounceIn 0.5s ease'
+                    }}>
+                      {gameState.players[gameState.last_action.player]?.name} got {gameState.last_action.count} {gameState.last_action.rank}{gameState.last_action.count > 1 ? 's' : ''}!
+                    </span>
+                    {gameState.last_action.player === playerId && (
+                      <div style={{
+                        color: '#FFD700',
+                        fontSize: '0.9em',
+                        animation: 'fadeIn 0.5s ease'
+                      }}>
+                        Cards added to your hand!
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            )}
+
             {/* Player selection for asking cards */}
-            {isCurrentPlayerTurn && selectedCards.length === 1 && (
+            {isCurrentPlayerTurn && selectedCards.length === 1 && !gameState.last_action?.action === 'go_fish' && (
               <div style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -1109,13 +1168,13 @@ function GameView() {
                 boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
               }}>
                 <div style={{ color: 'white', marginBottom: '5px', fontWeight: 'bold' }}>
-                  Asking for {gameState?.players?.[playerId]?.hand?.[selectedCards[0]]?.rank}s
+                  Ask for {gameState?.players?.[playerId]?.hand?.[selectedCards[0]]?.rank}s
                 </div>
                 <select 
                   onChange={(e) => {
                     if (e.target.value) {
                       handleGameAction('ask_for_cards', {
-                        target_player_id: e.target.value,
+                        target_player_id: parseInt(e.target.value),
                         rank: gameState?.players?.[playerId]?.hand?.[selectedCards[0]]?.rank
                       });
                       setSelectedCards([]);
@@ -1145,7 +1204,7 @@ function GameView() {
             )}
 
             {/* Instructions when it's player's turn but no card selected */}
-            {isCurrentPlayerTurn && selectedCards.length === 0 && (
+            {isCurrentPlayerTurn && selectedCards.length === 0 && !gameState.last_action?.action === 'go_fish' && (
               <div style={{
                 color: 'white',
                 textAlign: 'center',
@@ -1157,6 +1216,30 @@ function GameView() {
                 Select a card to ask for its rank
               </div>
             )}
+
+            {/* Add CSS animations */}
+            <style>
+              {`
+                @keyframes pulse {
+                  0% { transform: scale(1); }
+                  50% { transform: scale(1.05); }
+                  100% { transform: scale(1); }
+                }
+                @keyframes bounceIn {
+                  0% { transform: scale(0.3); opacity: 0; }
+                  50% { transform: scale(1.05); opacity: 0.8; }
+                  70% { transform: scale(0.9); opacity: 0.9; }
+                  100% { transform: scale(1); opacity: 1; }
+                }
+                @keyframes fadeIn {
+                  from { opacity: 0; }
+                  to { opacity: 1; }
+                }
+                .card-transfer {
+                  transition: all 0.5s ease;
+                }
+              `}
+            </style>
 
             {/* View Sets Button */}
             {Object.values(gameState.completed_sets || {}).some(sets => sets.length > 0) && (
