@@ -170,7 +170,7 @@ function Lobby() {
             });
           } else if (data.type === 'player_disconnect') {
             // Remove disconnected player from the list
-            setPlayers(prev => prev.filter(p => p.id !== data.player_id));
+            setPlayers(prev => prev.filter(p => String(p.id) !== String(data.player_id)));
             // Add system message about player leaving
             const leaveMessage = {
               username: 'System',
