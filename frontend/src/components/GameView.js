@@ -1672,7 +1672,7 @@ function GameView() {
   };
 
   useEffect(() => {
-    if (gameState?.current_player === playerId) {
+    if (gameState?.current_player === String(playerId)) {
       setIsCurrentPlayerTurn(true);
     } else {
       setIsCurrentPlayerTurn(false);
