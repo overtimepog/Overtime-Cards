@@ -1276,7 +1276,7 @@ function GameView() {
               )}
 
               {/* Player selection for asking cards */}
-              {isCurrentPlayerTurn && selectedCards.length === 1 && !gameState.last_action?.action === 'go_fish' && (
+              {isCurrentPlayerTurn && selectedCards.length === 1 && (
                 <div style={{
                   display: 'flex',
                   flexDirection: 'column',
@@ -1324,7 +1324,7 @@ function GameView() {
               )}
 
               {/* Instructions when it's player's turn but no card selected */}
-              {isCurrentPlayerTurn && selectedCards.length === 0 && !gameState.last_action?.action === 'go_fish' && (
+              {isCurrentPlayerTurn && selectedCards.length === 0 && (
                 <div style={{
                   color: 'white',
                   textAlign: 'center',
@@ -1572,50 +1572,50 @@ function GameView() {
                 {selectedCards.length > 0 && (
                   <>
                     <button
-                      onClick={() => {
-                        handleGameAction('create_meld', {
-                          card_indices: selectedCards
+                    onClick={() => {
+                      handleGameAction('create_meld', {
+                        card_indices: selectedCards
+                      });
+                      setSelectedCards([]);
+                    }}
+                    className="button-hover"
+                    style={{
+                      padding: '10px 20px',
+                      backgroundColor: '#4CAF50',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '5px',
+                      cursor: 'pointer'
+                    }}
+                    disabled={selectedCards.length < 3}
+                  >
+                    Create Meld
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (selectedCards.length === 1) {
+                        handleGameAction('discard_card', {
+                          card_index: selectedCards[0]
                         });
                         setSelectedCards([]);
-                      }}
-                      className="button-hover"
-                      style={{
-                        padding: '10px 20px',
-                        backgroundColor: '#4CAF50',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '5px',
-                        cursor: 'pointer'
-                      }}
-                      disabled={selectedCards.length < 3}
-                    >
-                      Create Meld
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (selectedCards.length === 1) {
-                          handleGameAction('discard_card', {
-                            card_index: selectedCards[0]
-                          });
-                          setSelectedCards([]);
-                        }
-                      }}
-                      className="button-hover"
-                      style={{
-                        padding: '10px 20px',
-                        backgroundColor: '#f44336',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '5px',
-                        cursor: 'pointer'
-                      }}
-                      disabled={selectedCards.length !== 1}
-                    >
-                      Discard
-                    </button>
-                  </>
-                )}
-              </div>
+                      }
+                    }}
+                    className="button-hover"
+                    style={{
+                      padding: '10px 20px',
+                      backgroundColor: '#f44336',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '5px',
+                      cursor: 'pointer'
+                    }}
+                    disabled={selectedCards.length !== 1}
+                  >
+                    Discard
+                  </button>
+                </>
+              )}
+            </div>
             )}
           </div>
         );
