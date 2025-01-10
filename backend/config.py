@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     
     # CORS
-    CORS_ORIGINS: list = os.getenv("CORS_ORIGINS", "http://localhost:3000,https://overtime-cards.vercel.app").split(",")
+    CORS_ORIGINS: list = os.getenv("CORS_ORIGINS", "http://localhost:3000,https://overtime-cards.vercel.app,https://overtime-cards-frontend-git-main-overtimepogs-projects.vercel.app,https://overtime-cards-frontend-6pa09ls8k-overtimepogs-projects.vercel.app").split(",")
     
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "overtime_cards.db")
