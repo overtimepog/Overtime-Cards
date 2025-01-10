@@ -561,6 +561,24 @@ function GameView() {
         setSelectedCards([]);
       }
 
+      // New logic to handle turn continuation
+      if (actionType === 'draw_card' && gameState.last_action?.action === 'go_fish') {
+        // Check if the drawn card matches the requested rank
+        const drawnCard = gameState.players[playerId].hand.slice(-1)[0]; // Assuming the last card is the drawn one
+        if (drawnCard.rank === gameState.last_action.rank) {
+          // Allow the player to go again
+          setIsCurrentPlayerTurn(true);
+        } else {
+          // End the turn
+          setIsCurrentPlayerTurn(false);
+        }
+      }
+
+      if (actionType === 'got_cards') {
+        // Allow the player to go again if they got a match
+        setIsCurrentPlayerTurn(true);
+      }
+
     } catch (err) {
       console.error('Error performing game action:', err);
       setError(err.message || 'Failed to perform action. Please try again.');
