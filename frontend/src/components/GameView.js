@@ -218,8 +218,6 @@ function GameView() {
   const [isCurrentPlayerTurn, setIsCurrentPlayerTurn] = useState(false);
   const [showSets, setShowSets] = useState(false);
   const [playerHandOrder, setPlayerHandOrder] = useState([]);
-  const [isConnected, setIsConnected] = useState(false);
-  const [completedSets, setCompletedSets] = useState({});
   // Initialize drop zones using the custom hook
   const { dropZoneData } = useGameDropZones(gameState, playerId);
 
