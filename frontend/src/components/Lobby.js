@@ -13,7 +13,6 @@ function Lobby() {
   const [chatMessages, setChatMessages] = useState([]);
   const chatEndRef = useRef(null);
   const { playerId, username, isHost } = location.state || {};
-  const BASE_URL = process.env.REACT_APP_API_URL || "https://overtime-cards-api.onrender.com/api/v1";
 
   // Auto scroll chat to bottom when new messages arrive
   useEffect(() => {
