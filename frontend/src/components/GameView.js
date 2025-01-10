@@ -15,6 +15,8 @@ import {
 } from '@dnd-kit/core';
 import backDark from '../components/cards/back_dark.png';
 
+//TODO: make sure when any game update happens, everyone's game state is updated and pages are automatically and silently updated
+
 // CSS for card interactions
 const cardStyles = `
   .card-container {
@@ -385,30 +387,17 @@ function GameView() {
         const data = JSON.parse(event.data);
         console.log('Raw WebSocket message:', data);
         
+        // Handle all game state updates silently
         if (data.type === 'game_state' || data.type === 'game_update') {
           console.log('Processing game state update:', data);
           const newState = data.type === 'game_state' ? data.state : data.game_state || {};
-          
-          // Handle player departure
-          if (data.type === 'game_update' && data.event === 'player_left') {
-            const departedPlayer = data.player;
-            setError(`${departedPlayer.name} has left the game.`);
-            
-            // If game can't continue, end it
-            if (data.game_ended) {
-              setTimeout(() => {
-                setError('Game ended due to player departure.');
-                navigate('/');
-              }, 3000);
-            }
-          }
           
           // Ensure we have a valid players object
           if (!newState.players) {
             newState.players = {};
           }
           
-          // Process player data
+          // Process player data and ensure all fields are present
           Object.keys(newState.players).forEach(id => {
             const strId = String(id);
             if (newState.players[strId]) {
@@ -417,7 +406,10 @@ function GameView() {
                 ...playerData,
                 id: strId,
                 hand: playerData.hand || [],
-                hand_size: playerData.hand_size || 0
+                hand_size: playerData.hand_size || 0,
+                score: playerData.score || 0,
+                tricks: playerData.tricks || 0,
+                bid: playerData.bid || 0
               };
             }
           });
@@ -426,34 +418,57 @@ function GameView() {
           const isMyTurn = String(newState.current_player) === String(playerId);
           setIsCurrentPlayerTurn(isMyTurn);
           
-          // Update game state
+          // Merge state updates with existing state
           setGameState(prevState => {
-            // If this is a game update, merge with previous state
-            if (data.type === 'game_update') {
+            // For full game state updates, replace everything but keep local UI state, and keep the players hands
+            if (data.type === 'game_state') {
               return {
-                ...prevState,
                 ...newState,
-                last_action: newState.last_action || prevState?.last_action,
-                current_player: newState.current_player || prevState?.current_player,
+                ui: prevState?.ui || {},
                 players: {
-                  ...prevState?.players,
-                  ...newState.players
+                  ...prevState?.players, // Preserve the players' hands
+                  ...newState.players // Merge with any new player data
                 }
               };
             }
-            // If this is a full game state, replace everything
-            return newState;
+            
+            // For partial updates, merge carefully
+            return {
+              ...prevState,
+              ...newState,
+              players: {
+                ...prevState?.players,
+                ...newState.players
+              },
+              last_action: newState.last_action || prevState?.last_action,
+              current_player: newState.current_player || prevState?.current_player,
+              // Preserve other game-specific state
+              center_pile: newState.center_pile || prevState?.center_pile,
+              discard_pile: newState.discard_pile || prevState?.discard_pile,
+              melds: newState.melds || prevState?.melds,
+              completed_sets: newState.completed_sets || prevState?.completed_sets,
+              current_trick: newState.current_trick || prevState?.current_trick,
+              teams: newState.teams || prevState?.teams,
+              phase: newState.phase || prevState?.phase,
+              cards_in_deck: newState.cards_in_deck ?? prevState?.cards_in_deck,
+              center_pile_size: newState.center_pile_size ?? prevState?.center_pile_size,
+              last_claim: newState.last_claim || prevState?.last_claim,
+              spoons: newState.spoons ?? prevState?.spoons,
+              total_spoons: newState.total_spoons ?? prevState?.total_spoons
+            };
           });
           
-          if (data.type === 'game_update' && data.result && !data.result.success) {
-            setError(data.result.message || 'Action failed');
-          }
-          
-          // Clear selected cards when turn changes
-          if (data.type === 'game_update' && String(newState.current_player) !== String(playerId)) {
+          // Clear selected cards when turn changes or on major state updates
+          if (data.type === 'game_state' || String(newState.current_player) !== String(playerId)) {
             setSelectedCards([]);
           }
           
+          // Only show errors for failed actions
+          if (data.type === 'game_update' && data.result && !data.result.success) {
+            setError(data.result.message || 'Action failed');
+            // Clear error after 3 seconds
+            setTimeout(() => setError(''), 3000);
+          }
         } else if (data.type === 'game_started') {
           console.log('Game started received:', data);
           // Handle initial game state from game start
@@ -481,12 +496,13 @@ function GameView() {
           const isMyTurn = String(newState.current_player) === String(playerId);
           setIsCurrentPlayerTurn(isMyTurn);
           
-          console.log('Processed game state:', newState);
           setGameState(newState);
           setError('');
         } else if (data.type === 'error') {
           setError(data.message || 'An error occurred');
           console.error('Server error:', data.message);
+          // Clear error after 3 seconds
+          setTimeout(() => setError(''), 3000);
         } else if (data.type === 'game_over') {
           setGameState(prev => ({
             ...prev,
@@ -499,6 +515,8 @@ function GameView() {
       } catch (error) {
         console.error('Error processing WebSocket message:', error);
         setError('Failed to process game update');
+        // Clear error after 3 seconds
+        setTimeout(() => setError(''), 3000);
       }
     };
 
