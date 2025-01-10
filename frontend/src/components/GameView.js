@@ -1261,7 +1261,7 @@ function GameView() {
             </div>
 
             {/* Game info */}
-            {gameState.last_play && (
+            {gameState.last_action && (
               <div style={{
                 color: 'white',
                 textAlign: 'center',
@@ -1270,15 +1270,19 @@ function GameView() {
                 borderRadius: '5px',
                 marginTop: '20px'
               }}>
-                {gameState.last_play.success ? (
+                {gameState.last_action.action === 'cards_received' ? (
                   <>
-                    {gameState.players[gameState.last_play.player]?.name} got {gameState.last_play.count} {gameState.last_play.rank}{gameState.last_play.count !== 1 ? 's' : ''} from {gameState.players[gameState.last_play.target]?.name}
+                    {gameState.players[gameState.last_action.player]?.name} got {gameState.last_action.count} {gameState.last_action.rank}{gameState.last_action.count !== 1 ? 's' : ''} from {gameState.players[gameState.last_action.target]?.name}
                   </>
-                ) : (
+                ) : gameState.last_action.action === 'go_fish' ? (
                   <>
-                    {gameState.players[gameState.last_play.player]?.name} asked {gameState.players[gameState.last_play.target]?.name} for {gameState.last_play.rank}s - Go Fish!
+                    {gameState.players[gameState.last_action.player]?.name} asked for {gameState.last_action.rank}s - Go Fish!
                   </>
-                )}
+                ) : gameState.last_action.action === 'successful_fish' ? (
+                  <>
+                    {gameState.players[gameState.last_action.player]?.name} fished what they wanted - a {gameState.last_action.rank}!
+                  </>
+                ) : null}
               </div>
             )}
 
@@ -1437,7 +1441,7 @@ function GameView() {
             alignItems: 'center',
             gap: '10px',
             position: 'absolute',
-            bottom: '250px',
+            bottom: '275px',
             left: '50%',
             transform: 'translateX(-50%)',
             opacity: isCurrentPlayerTurn && selectedCards.length === 1 ? '1' : '0',
