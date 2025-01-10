@@ -890,7 +890,7 @@ function GameView() {
     switch (gameType) {
       case 'kings_corner':
         return (
-          <div className="kings-corner-container" style={{
+          <div data-testid="kings_corner-game" className="kings-corner-container" style={{
             position: 'absolute',
             top: '50%',
             left: '50%',
@@ -963,7 +963,7 @@ function GameView() {
 
       case 'snap':
         return (
-          <div className="snap-game" style={{
+          <div data-testid="snap-game" className="snap-game" style={{
             position: 'absolute',
             top: '50%',
             left: '50%',
@@ -1042,7 +1042,7 @@ function GameView() {
 
       case 'spoons':
         return (
-          <div className="spoons-game" style={{ 
+          <div data-testid="spoons-game" className="spoons-game" style={{ 
             position: 'absolute',
             top: '50%',
             left: '50%',
@@ -1144,7 +1144,7 @@ function GameView() {
 
       case 'go_fish':
         return (
-          <div className="go-fish-game" style={{
+          <div data-testid="go_fish-game" className="go-fish-game" style={{
             position: 'absolute',
             top: '0',
             left: '0',
@@ -1453,7 +1453,7 @@ function GameView() {
 
       case 'rummy':
         return (
-          <div className="rummy-game" style={{
+          <div data-testid="rummy-game" className="rummy-game" style={{
             position: 'absolute',
             top: '50%',
             left: '50%',
@@ -1627,7 +1627,7 @@ function GameView() {
 
       case 'scat':
         return (
-          <div className="scat-game" style={{
+          <div data-testid="scat-game" className="scat-game" style={{
             position: 'absolute',
             top: '50%',
             left: '50%',
@@ -1751,7 +1751,7 @@ function GameView() {
 
       case 'spades':
         return (
-          <div className="spades-game" style={{
+          <div data-testid="spades-game" className="spades-game" style={{
             position: 'absolute',
             top: '50%',
             left: '50%',
@@ -1889,7 +1889,7 @@ function GameView() {
 
       case 'bluff':
         return (
-          <div className="bluff-game" style={{
+          <div data-testid="bluff-game" className="bluff-game" style={{
             position: 'absolute',
             top: '50%',
             left: '50%',
