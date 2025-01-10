@@ -768,19 +768,7 @@ function GameView() {
             <div key={`${card.suit}_${card.rank}_${idx}`} style={{
               marginLeft: idx === 0 ? '0' : '-25px',
             }}>
-              <Card 
-                card={card}
-                index={idx}
-                isInHand={isCurrentPlayerHand}
-                canDrag={isCurrentPlayerHand && !card.show_back && isCurrentPlayerTurn}
-                onCardClick={
-                  isCurrentPlayerHand && !card.show_back && isCurrentPlayerTurn
-                    ? () => handleCardClick(idx)
-                    : undefined
-                }
-                gameType={gameType}
-                isSelected={selectedCards.includes(idx)}
-              />
+              {renderCard(card, idx, isCurrentPlayerHand, isCurrentPlayerTurn)}
             </div>
           ))}
         </div>
@@ -853,7 +841,7 @@ function GameView() {
                         position: 'absolute',
                         transform: `translateY(${cardIndex * 2}px)`
                       }}>
-                        <Card card={card} index={cardIndex} canDrag={isCurrentPlayerTurn} />
+                        {renderCard(card, cardIndex, false)}
                       </div>
                     )))
                   ) : (
@@ -881,7 +869,7 @@ function GameView() {
                         position: 'absolute',
                         transform: `translateY(${cardIndex * 2}px)`
                       }}>
-                        <Card card={card} index={cardIndex} canDrag={isCurrentPlayerTurn} />
+                        {renderCard(card, cardIndex, false)}
                       </div>
                     )))
                   ) : (
@@ -915,7 +903,7 @@ function GameView() {
                   position: 'absolute',
                   transform: `rotate(${Math.random() * 10 - 5}deg)`
                 }}>
-                  <Card card={card} index={index} canDrag={false} />
+                  {renderCard(card, index, false)}
                 </div>
               )),
               {
@@ -1319,12 +1307,7 @@ function GameView() {
                         marginLeft: cardIndex === 0 ? '0' : '-40px',
                         transition: 'transform 0.2s ease'
                       }}>
-                        <Card
-                          card={card}
-                          index={cardIndex}
-                          isInHand={false}
-                          canDrag={isCurrentPlayerTurn}
-                        />
+                        {renderCard(card, cardIndex, false, isCurrentPlayerTurn)}
                       </div>
                     )),
                     {
@@ -1359,11 +1342,7 @@ function GameView() {
                 }}
               >
                 {gameState.deck_size > 0 && (
-                  <Card
-                    card={{ show_back: true }}
-                    isInHand={false}
-                    canDrag={false}
-                  />
+                  renderCard({ show_back: true }, 0, false)
                 )}
                 <div style={{
                   position: 'absolute',
@@ -1382,12 +1361,7 @@ function GameView() {
               {renderDropZone('discard',
                 gameState.discard_pile?.slice(-1).map((card, index) => (
                   <div key={index}>
-                    <Card
-                      card={card}
-                      index={index}
-                      isInHand={false}
-                      canDrag={false}
-                    />
+                    {renderCard(card, index, false)}
                   </div>
                 )) || [],
                 {
@@ -1492,11 +1466,7 @@ function GameView() {
                 }}
               >
                 {gameState.deck_size > 0 && (
-                  <Card
-                    card={{ show_back: true }}
-                    isInHand={false}
-                    canDrag={false}
-                  />
+                  renderCard({ show_back: true }, 0, false)
                 )}
                 <div style={{
                   position: 'absolute',
@@ -1515,12 +1485,7 @@ function GameView() {
               {renderDropZone('discard',
                 gameState.discard_pile?.slice(-1).map((card, index) => (
                   <div key={index}>
-                    <Card
-                      card={card}
-                      index={index}
-                      isInHand={false}
-                      canDrag={false}
-                    />
+                    {renderCard(card, index, false)}
                   </div>
                 )) || [],
                 {
@@ -1647,11 +1612,7 @@ function GameView() {
                     top: '50%',
                     transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`
                   }}>
-                    <Card
-                      card={play.card}
-                      isInHand={false}
-                      canDrag={false}
-                    />
+                    {renderCard(play.card, index, false)}
                   </div>
                 );
               })}
@@ -1756,11 +1717,7 @@ function GameView() {
               {renderDropZone('center',
                 gameState.center_pile?.slice(-1).map((card, index) => (
                   <div key={index}>
-                    <Card
-                      card={{ show_back: true }}
-                      isInHand={false}
-                      canDrag={false}
-                    />
+                    {renderCard({ show_back: true }, index, false)}
                   </div>
                 )) || [],
                 {
