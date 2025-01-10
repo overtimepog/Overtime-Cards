@@ -179,6 +179,13 @@ function Lobby() {
               timestamp: data.timestamp || new Date().toISOString()
             };
             setChatMessages(prev => [...prev, leaveMessage]);
+            
+            // Request latest state to ensure player list is in sync
+            if (ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({
+                type: 'get_state'
+              }));
+            }
           } else if (data.type === 'host_update') {
             // Update host status for all players
             setPlayers(prev => prev.map(player => ({
