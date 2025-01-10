@@ -1162,18 +1162,14 @@ function GameView() {
               alignItems: 'center'
             }}>
               <div 
-                onClick={() => isCurrentPlayerTurn && gameState.last_action?.action === 'go_fish' && 
-                  gameState.last_action.player === playerId && handleGameAction('draw_card')}
+                onClick={() => isCurrentPlayerTurn && handleGameAction('draw_card')}
                 style={{
                   position: 'relative',
-                  cursor: (isCurrentPlayerTurn && gameState.last_action?.action === 'go_fish' && 
-                    gameState.last_action.player === playerId) ? 'pointer' : 'default',
+                  cursor: isCurrentPlayerTurn ? 'pointer' : 'default',
                   transition: 'transform 0.2s ease',
-                  transform: (isCurrentPlayerTurn && gameState.last_action?.action === 'go_fish' && 
-                    gameState.last_action.player === playerId) ? 'scale(1.05)' : 'none'
+                  transform: isCurrentPlayerTurn ? 'scale(1.05)' : 'none'
                 }}
-                className={isCurrentPlayerTurn && gameState.last_action?.action === 'go_fish' && 
-                  gameState.last_action.player === playerId ? 'pulse' : ''}
+                className={isCurrentPlayerTurn ? 'pulse' : ''}
               >
                 {gameState.cards_in_deck > 0 && renderCard({ show_back: true }, 0, false)}
                 <div style={{
@@ -1521,18 +1517,14 @@ function GameView() {
             }}>
               {/* Draw pile */}
               <div 
-                onClick={() => isCurrentPlayerTurn && gameState.last_action?.action === 'go_fish' && 
-                  gameState.last_action.player === playerId && handleGameAction('draw_card')}
+                onClick={() => isCurrentPlayerTurn && handleGameAction('draw_card')}
                 style={{
                   position: 'relative',
-                  cursor: (isCurrentPlayerTurn && gameState.last_action?.action === 'go_fish' && 
-                    gameState.last_action.player === playerId) ? 'pointer' : 'default',
+                  cursor: isCurrentPlayerTurn ? 'pointer' : 'default',
                   transition: 'transform 0.2s ease',
-                  transform: (isCurrentPlayerTurn && gameState.last_action?.action === 'go_fish' && 
-                    gameState.last_action.player === playerId) ? 'scale(1.05)' : 'none'
+                  transform: isCurrentPlayerTurn ? 'scale(1.05)' : 'none'
                 }}
-                className={isCurrentPlayerTurn && gameState.last_action?.action === 'go_fish' && 
-                  gameState.last_action.player === playerId ? 'pulse' : ''}
+                className={isCurrentPlayerTurn ? 'pulse' : ''}
               >
                 {gameState.cards_in_deck > 0 && renderCard({ show_back: true }, 0, false)}
                 <div style={{
@@ -1653,18 +1645,14 @@ function GameView() {
             }}>
               {/* Draw pile */}
               <div 
-                onClick={() => isCurrentPlayerTurn && gameState.last_action?.action === 'go_fish' && 
-                  gameState.last_action.player === playerId && handleGameAction('draw_card')}
+                onClick={() => isCurrentPlayerTurn && handleGameAction('draw_card')}
                 style={{
                   position: 'relative',
-                  cursor: (isCurrentPlayerTurn && gameState.last_action?.action === 'go_fish' && 
-                    gameState.last_action.player === playerId) ? 'pointer' : 'default',
+                  cursor: isCurrentPlayerTurn ? 'pointer' : 'default',
                   transition: 'transform 0.2s ease',
-                  transform: (isCurrentPlayerTurn && gameState.last_action?.action === 'go_fish' && 
-                    gameState.last_action.player === playerId) ? 'scale(1.05)' : 'none'
+                  transform: isCurrentPlayerTurn ? 'scale(1.05)' : 'none'
                 }}
-                className={isCurrentPlayerTurn && gameState.last_action?.action === 'go_fish' && 
-                  gameState.last_action.player === playerId ? 'pulse' : ''}
+                className={isCurrentPlayerTurn ? 'pulse' : ''}
               >
                 {gameState.cards_in_deck > 0 && renderCard({ show_back: true }, 0, false)}
                 <div style={{
