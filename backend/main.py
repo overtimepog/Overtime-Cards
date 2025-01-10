@@ -1869,13 +1869,28 @@ async def reset_database(request: Request):
 
 def format_player_states(player_states, players):
     formatted = []
-    for player_id, state in player_states.items():
-        player_info = {
-            'id': player_id,
-            'name': players[int(player_id)]['username'],
-            'isHost': state.get('is_host', False),
-            'isReady': players[int(player_id)].get('is_ready', False)
-        }
-        player_info.update(state)
-        formatted.append(player_info)
+    if isinstance(player_states, dict):
+        # Handle dictionary input
+        for player_id, state in player_states.items():
+            player_info = {
+                'id': player_id,
+                'name': players[int(player_id)]['username'],
+                'isHost': state.get('is_host', False),
+                'isReady': players[int(player_id)].get('is_ready', False)
+            }
+            player_info.update(state)
+            formatted.append(player_info)
+    else:
+        # Handle list input
+        for state in player_states:
+            player_id = str(state.get('id'))
+            if player_id and int(player_id) in players:
+                player_info = {
+                    'id': player_id,
+                    'name': players[int(player_id)]['username'],
+                    'isHost': state.get('is_host', False),
+                    'isReady': players[int(player_id)].get('is_ready', False)
+                }
+                player_info.update(state)
+                formatted.append(player_info)
     return formatted
