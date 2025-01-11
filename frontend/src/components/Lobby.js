@@ -90,6 +90,15 @@ function Lobby() {
     const maxRetries = 0;
     let websocket = null;
 
+    const sendGetState = (socket) => {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        console.log('Requesting initial state...');
+        socket.send(JSON.stringify({
+          type: 'get_state'
+        }));
+      }
+    };
+
     const connectWebSocket = () => {
       // Clean up any existing connection first
       if (websocket) {
@@ -105,14 +114,7 @@ function Lobby() {
         setError(''); // Clear any previous connection errors
         retryCount = 0; // Reset retry count on successful connection
         // Wait a short moment before requesting initial state
-        setTimeout(() => {
-          if (websocket.readyState === WebSocket.OPEN) {
-            console.log('Requesting initial state...');
-            websocket.send(JSON.stringify({
-              type: 'get_state'
-            }));
-          }
-        }, 1000);
+        setTimeout(() => sendGetState(websocket), 1000);
       };
 
       websocket.onmessage = (event) => {
@@ -181,11 +183,7 @@ function Lobby() {
             setChatMessages(prev => [...prev, leaveMessage]);
             
             // Request latest state to ensure player list is in sync
-            if (ws && ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({
-                type: 'get_state'
-              }));
-            }
+            sendGetState(websocket);
           } else if (data.type === 'host_update') {
             // Update host status for all players
             setPlayers(prev => prev.map(player => ({
@@ -250,13 +248,13 @@ function Lobby() {
       return websocket;
     };
 
-    connectWebSocket();
+    const socket = connectWebSocket();
 
     // Clean up function to properly close WebSocket connection
     return () => {
       console.log('Cleaning up WebSocket connection');
-      if (websocket) {
-        websocket.close();
+      if (socket) {
+        socket.close();
       }
     };
   }, [roomCode, playerId, username, navigate, isHost, location.state]);
