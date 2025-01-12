@@ -55,6 +55,7 @@ request_cache = TTLCache(maxsize=10000, ttl=60)  # Cache for rate limiting
 query_cache = TTLCache(maxsize=5000, ttl=300)    # Cache for database queries
 player_cache = TTLCache(maxsize=1000, ttl=600)   # Cache for player data
 room_cache = TTLCache(maxsize=500, ttl=300)      # Cache for room data
+seen_messages = TTLCache(maxsize=10000, ttl=300)  # Cache for tracking seen messages
 
 def generate_cache_key(*args, **kwargs):
     """Generate a consistent cache key from arguments"""
@@ -1718,13 +1719,32 @@ async def process_websocket_message(websocket: WebSocket, data: dict, room_code:
                     })
                     return
                     
+                # Generate unique message ID
+                message_id = f"{room_code}:{player_id}:{current_time.timestamp()}"
+                
                 chat_message = {
                     "type": "chat",
+                    "message_id": message_id,
                     "username": player['username'],
                     "message": message,
                     "isSystem": False,
                     "timestamp": current_time.isoformat()
                 }
+                
+                # Track who has seen this message
+                seen_messages[message_id] = {str(player_id)}  # Sender has seen it
+                
+                # Store message in database but only broadcast to players who haven't seen it
+                if room_code in manager.active_connections:
+                    for recipient_id, websocket in manager.active_connections[room_code].items():
+                        if str(recipient_id) not in seen_messages.get(message_id, set()):
+                            try:
+                                await websocket.send_json(chat_message)
+                                seen_messages[message_id].add(str(recipient_id))
+                            except Exception as e:
+                                logger.error(f"Error sending chat message to player {recipient_id}: {e}")
+
+                # Store the message for future retrieval
                 await manager.store_and_broadcast_message(chat_message, room_code)
             
         elif message_type == 'leave_room':

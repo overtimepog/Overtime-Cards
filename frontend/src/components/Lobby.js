@@ -141,7 +141,12 @@ function Lobby() {
             }
             // Handle initial chat history if provided
             if (data.chat_history) {
-              setChatMessages(data.chat_history);
+              // Ensure we don't have duplicate messages
+              const uniqueMessages = data.chat_history.filter(msg => 
+                !msg.message_id || 
+                !chatMessages.some(existing => existing.message_id === msg.message_id)
+              );
+              setChatMessages(prev => [...prev, ...uniqueMessages]);
             }
           } else if (data.type === 'game_started') {
             navigate(`/game/${roomCode}/${playerId}`, {
@@ -211,14 +216,17 @@ function Lobby() {
             };
             setChatMessages(prev => [...prev, hostUpdateMessage]);
           } else if (data.type === 'chat') {
-            // Handle incoming chat messages
-            const chatMessage = {
-              username: data.username,
-              message: data.message,
-              isSystem: false,
-              timestamp: data.timestamp || new Date().toISOString()
-            };
-            setChatMessages(prev => [...prev, chatMessage]);
+            // Check if we've already seen this message
+            if (!data.message_id || !chatMessages.some(msg => msg.message_id === data.message_id)) {
+              const chatMessage = {
+                message_id: data.message_id,
+                username: data.username,
+                message: data.message,
+                isSystem: false,
+                timestamp: data.timestamp || new Date().toISOString()
+              };
+              setChatMessages(prev => [...prev, chatMessage]);
+            }
           }
         } catch (err) {
           console.error('Error processing WebSocket message:', err);
