@@ -896,29 +896,8 @@ function GameView() {
     };
 
     switch (gameType) {
-      //case 'kings_corner':
-      //  return <KingsCorner gameState={gameState} playerId={playerId} renderCard={renderCard} renderDropZone={renderDropZone} />;
-      
-      //case 'snap':
-      //  return <Snap gameState={gameState} playerId={playerId} renderCard={renderCard} renderDropZone={renderDropZone} />;
-
-      //case 'spoons':
-      //  return <Spoons gameState={gameState} playerId={playerId} renderCard={renderCard} renderDropZone={renderDropZone} />;
-      
       case 'go_fish':
         return <GoFish gameState={gameState} playerId={playerId} renderCard={renderCard} renderDropZone={renderDropZone} />;
-
-      //case 'rummy':
-      //  return <Rummy gameState={gameState} playerId={playerId} renderCard={renderCard} renderDropZone={renderDropZone} />;
-
-      //case 'scat':
-      //  return <Scat gameState={gameState} playerId={playerId} renderCard={renderCard} renderDropZone={renderDropZone} />;
-
-      //case 'spades':
-      //  return <Spades gameState={gameState} playerId={playerId} renderCard={renderCard} renderDropZone={renderDropZone} />
-
-      //case 'bluff':
-      //  return <Bluff gameState={gameState} playerId={playerId} renderCard={renderCard} renderDropZone={renderDropZone} />;
       default:
         return (
           <div className="unsupported-game" style={{
