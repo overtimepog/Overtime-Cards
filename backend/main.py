@@ -501,12 +501,16 @@ class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, Dict[int, WebSocket]] = {}
         logger.info("ConnectionManager initialized")
+        logger.debug("Active connections initialized as empty dictionary")
 
     async def connect(self, websocket: WebSocket, room_code: str, player_id: int):
+        logger.debug(f"Attempting to connect player {player_id} to room {room_code}")
         await websocket.accept()
         if room_code not in self.active_connections:
             self.active_connections[room_code] = {}
+            logger.debug(f"Created new entry for room {room_code} in active connections")
         self.active_connections[room_code][player_id] = websocket
+        logger.debug(f"Player {player_id} added to active connections for room {room_code}")
         
         # Get player details from database
         with get_db() as conn:
@@ -527,6 +531,7 @@ class ConnectionManager:
                 is_host = player['is_host']
                 host_status = "host" if is_host else "player"
                 logger.info(f"{username} ({host_status}, ID: {player_id}) connected to room {room_code}")
+                logger.debug(f"Player details: {player}")
                 
                 # Update player activity
                 conn.execute(
@@ -569,16 +574,20 @@ class ConnectionManager:
                 raise Exception("Player not found in room")
 
     async def disconnect(self, websocket: WebSocket, room_code: str, player_id: int):
+        logger.debug(f"Attempting to disconnect player {player_id} from room {room_code}")
         try:
             if websocket.client_state != WebSocketState.DISCONNECTED:
                 await websocket.close()
+                logger.debug(f"WebSocket closed for player {player_id}")
             if room_code in self.active_connections:
                 if player_id in self.active_connections[room_code]:
                     try:
                         # Remove from active connections first
                         del self.active_connections[room_code][player_id]
+                        logger.debug(f"Player {player_id} removed from active connections for room {room_code}")
                         if not self.active_connections[room_code]:
                             del self.active_connections[room_code]
+                            logger.debug(f"No more active connections for room {room_code}, entry removed")
                         
                         logger.info(f"Player (ID: {player_id}) disconnected from room {room_code}")
                         
@@ -589,12 +598,14 @@ class ConnectionManager:
                             del self.active_connections[room_code][player_id]
                         if room_code in self.active_connections and not self.active_connections[room_code]:
                             del self.active_connections[room_code]
+                            logger.debug(f"Cleanup: No more active connections for room {room_code}, entry removed")
                             
         except Exception as e:
             logger.error(f"Error in disconnect: {e}")
 
     async def store_and_broadcast_message(self, message: dict, room_code: str):
         """Store message in chat history and broadcast to all players in room"""
+        logger.debug(f"Storing and broadcasting message in room {room_code}: {message}")
         try:
             # First broadcast the message to all connected clients
             await self.broadcast_to_room(message, room_code)
@@ -630,6 +641,7 @@ class ConnectionManager:
                                 (json.dumps(chat_history), room_code)
                             )
                             conn.commit()
+                            logger.debug(f"Chat history updated for room {room_code}")
                         except json.JSONDecodeError:
                             # If chat history is corrupted, start fresh
                             chat_history = [message]
@@ -638,6 +650,7 @@ class ConnectionManager:
                                 (json.dumps(chat_history), room_code)
                             )
                             conn.commit()
+                            logger.debug(f"Chat history reset for room {room_code} due to JSONDecodeError")
             except sqlite3.Error as e:
                 logger.error(f"Database error in store_and_broadcast_message: {e}")
                 # Continue even if database storage fails - message was already broadcast
@@ -646,11 +659,13 @@ class ConnectionManager:
             logger.error(f"Error in store_and_broadcast_message: {e}")
 
     async def broadcast_to_room(self, message: dict, room_code: str):
+        logger.debug(f"Broadcasting message to room {room_code}: {message}")
         if room_code in self.active_connections:
             disconnected_players = []
             for player_id, websocket in self.active_connections[room_code].items():
                 try:
                     await websocket.send_json(message)
+                    logger.debug(f"Message sent to player {player_id} in room {room_code}")
                 except Exception as e:
                     logger.error(f"Error broadcasting message to player (ID: {player_id}): {e}")
                     disconnected_players.append(player_id)
@@ -659,18 +674,22 @@ class ConnectionManager:
             for player_id in disconnected_players:
                 try:
                     del self.active_connections[room_code][player_id]
+                    logger.debug(f"Disconnected player {player_id} removed from active connections for room {room_code}")
                 except KeyError:
                     pass
             
             # Clean up empty room from connections
             if not self.active_connections[room_code]:
                 del self.active_connections[room_code]
+                logger.debug(f"No more active connections for room {room_code}, entry removed")
 
     async def send_to_player(self, message: dict, room_code: str, player_id: int):
+        logger.debug(f"Sending message to player {player_id} in room {room_code}: {message}")
         try:
             if room_code in self.active_connections:
                 if player_id in self.active_connections[room_code]:
                     await self.active_connections[room_code][player_id].send_json(message)
+                    logger.debug(f"Message sent to player {player_id} in room {room_code}")
         except Exception as e:
             logger.error(f"Error sending message to player: {e}")
 
