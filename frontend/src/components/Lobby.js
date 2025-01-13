@@ -265,7 +265,7 @@ function Lobby() {
         socket.close();
       }
     };
-  }, [roomCode, playerId, username, navigate, isHost, location.state]);
+  }, [chatMessages, roomCode, playerId, username, navigate, isHost, location.state]);
 
   const handleStartGame = async () => {
     try {
