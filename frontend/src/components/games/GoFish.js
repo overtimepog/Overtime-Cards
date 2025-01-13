@@ -1,7 +1,34 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
-const GoFish = ({ gameState, playerId, renderCard, renderDropZone }) => {
-    return (
+const GoFish = ({ gameState, playerId, renderCard, renderDropZone, ws }) => {
+  const [isCurrentPlayerTurn, setIsCurrentPlayerTurn] = useState(false);
+  const [selectedCards, setSelectedCards] = useState([]);
+  const [showSets, setShowSets] = useState(false);
+
+  useEffect(() => {
+    // Determine if it's the current player's turn
+    setIsCurrentPlayerTurn(gameState.current_player === playerId);
+  }, [gameState, playerId]);
+
+  const handleGameAction = (actionType, actionData = {}) => {
+    if (!ws) {
+      console.error('WebSocket connection not available');
+      return;
+    }
+
+    const message = {
+      type: 'game_action',
+      action: {
+        action_type: actionType,
+        player_id: playerId,
+        ...actionData
+      }
+    };
+
+    ws.send(JSON.stringify(message));
+  };
+
+  return (
     <div data-testid="go_fish-game" className="go-fish-game" style={{
       position: 'absolute',
       top: '0',
