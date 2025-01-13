@@ -44,12 +44,12 @@ class Card:
     @property
     def image_front(self) -> str:
         """Get the path to the card's front image"""
-        return f"cards/{self.suit.value}_{self.rank.value}.png"
+        return f"assets/{self.suit.value}_{self.rank.value}.png"
 
     @property
     def image_back(self) -> str:
         """Get the path to the card's back image"""
-        return "cards/back_dark.png"
+        return "assets/back_dark.png"
 
     def to_dict(self) -> Dict[str, str]:
         """Convert card to dictionary for JSON serialization"""

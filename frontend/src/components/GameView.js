@@ -13,7 +13,7 @@ import {
   rectIntersection,
   MeasuringStrategy,
 } from '@dnd-kit/core';
-import backDark from '../components/cards/back_dark.png';
+import backDark from '../components/assets/back_dark.png';
 
 //TODO: make sure when any game update happens, everyone's game state is updated and pages are automatically and silently updated
 
@@ -123,7 +123,7 @@ const Card = React.memo(({
   
   const imagePath = card.show_back ? 
     backDark : 
-    require(`../components/cards/${card.suit.toLowerCase()}_${card.rank}.png`);
+    require(`../components/assets/${card.suit.toLowerCase()}_${card.rank}.png`);
 
   const handleClick = (e) => {
     e.preventDefault();
