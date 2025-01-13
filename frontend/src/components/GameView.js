@@ -877,16 +877,16 @@ function GameView() {
   const renderGame = () => {
     if (!gameState) return null;
 
-    const renderDroppablePile = (type, children, style = {}) => {
-      return renderDropZone(type, children, {
-        width: '80px',
-        height: '120px',
-        border: '2px dashed rgba(255,255,255,0.3)',
-        borderRadius: '8px',
-        backgroundColor: 'transparent',
-        ...style
-      });
-    };
+    //const renderDroppablePile = (type, children, style = {}) => {
+      //return renderDropZone(type, children, {
+      //  width: '80px',
+      //  height: '120px',
+      //  border: '2px dashed rgba(255,255,255,0.3)',
+      //  borderRadius: '8px',
+      //  backgroundColor: 'transparent',
+      //  ...style
+      //});
+    //};
 
     switch (gameType) {
       case 'go_fish':

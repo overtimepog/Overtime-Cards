@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const GoFish = ({ gameState, playerId, renderCard, renderDropZone, ws }) => {
+const GoFish = ({ gameState, playerId, renderCard, ws }) => {
   const [isCurrentPlayerTurn, setIsCurrentPlayerTurn] = useState(false);
   const [selectedCards, setSelectedCards] = useState([]);
   const [showSets, setShowSets] = useState(false);
