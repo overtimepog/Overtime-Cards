@@ -14,14 +14,7 @@ import {
   MeasuringStrategy,
 } from '@dnd-kit/core';
 import backDark from '../components/assets/back_dark.png';
-import Bluff from './games/Bluff';
-import KingsCorner from './games/KingsCorner';
-import Spades from './games/Spades';
-import Scat from './games/Scat';
-import Rummy from './games/Rummy';
 import GoFish from './games/GoFish';
-import Spoons from './games/Spoons';
-import Snap from './games/Snap';
 
 //TODO: make sure when any game update happens, everyone's game state is updated and pages are automatically and silently updated
 
