@@ -19,6 +19,9 @@ import KingsCorner from './games/KingsCorner';
 import Spades from './games/Spades';
 import Scat from './games/Scat';
 import Rummy from './games/Rummy';
+import GoFish from './games/GoFish';
+import Spoons from './games/Spoons';
+import Snap from './games/Snap';
 
 //TODO: make sure when any game update happens, everyone's game state is updated and pages are automatically and silently updated
 
@@ -893,29 +896,29 @@ function GameView() {
     };
 
     switch (gameType) {
-      case 'kings_corner':
-        return <KingsCorner gameState={gameState} playerId={playerId} renderCard={renderCard} renderDropZone={renderDropZone} />;
+      //case 'kings_corner':
+      //  return <KingsCorner gameState={gameState} playerId={playerId} renderCard={renderCard} renderDropZone={renderDropZone} />;
+      
+      //case 'snap':
+      //  return <Snap gameState={gameState} playerId={playerId} renderCard={renderCard} renderDropZone={renderDropZone} />;
 
-      case 'snap':
-        return <Snap gameState={gameState} playerId={playerId} renderCard={renderCard} renderDropZone={renderDropZone} />;
-
-      case 'spoons':
-        return <Spoons gameState={gameState} playerId={playerId} renderCard={renderCard} renderDropZone={renderDropZone} />;
+      //case 'spoons':
+      //  return <Spoons gameState={gameState} playerId={playerId} renderCard={renderCard} renderDropZone={renderDropZone} />;
       
       case 'go_fish':
         return <GoFish gameState={gameState} playerId={playerId} renderCard={renderCard} renderDropZone={renderDropZone} />;
 
-      case 'rummy':
-        return <Rummy gameState={gameState} playerId={playerId} renderCard={renderCard} renderDropZone={renderDropZone} />;
+      //case 'rummy':
+      //  return <Rummy gameState={gameState} playerId={playerId} renderCard={renderCard} renderDropZone={renderDropZone} />;
 
-      case 'scat':
-        return <Scat gameState={gameState} playerId={playerId} renderCard={renderCard} renderDropZone={renderDropZone} />;
+      //case 'scat':
+      //  return <Scat gameState={gameState} playerId={playerId} renderCard={renderCard} renderDropZone={renderDropZone} />;
 
-      case 'spades':
-        return <Spades gameState={gameState} playerId={playerId} renderCard={renderCard} renderDropZone={renderDropZone} />
+      //case 'spades':
+      //  return <Spades gameState={gameState} playerId={playerId} renderCard={renderCard} renderDropZone={renderDropZone} />
 
-      case 'bluff':
-        return <Bluff gameState={gameState} playerId={playerId} renderCard={renderCard} renderDropZone={renderDropZone} />;
+      //case 'bluff':
+      //  return <Bluff gameState={gameState} playerId={playerId} renderCard={renderCard} renderDropZone={renderDropZone} />;
       default:
         return (
           <div className="unsupported-game" style={{
